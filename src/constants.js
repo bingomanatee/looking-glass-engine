@@ -1,0 +1,13 @@
+
+
+export default (bottle) => {
+  bottle.constant('BASE_STATE_UNINITIALIZED_VALUE', Symbol('BASE_STATE_UNINITIALIZED_VALUE'));
+  bottle.constant('BASE_STATE_STATUS_UNINITIALIZED', Symbol('BASE_STATE_STATUS_UNINITIALIZED'));
+  bottle.constant('BASE_STATE_STATUS_INITIALIZED', Symbol('BASE_STATE_STATUS_INITIALIZED'));
+  bottle.constant('BASE_STATE_STATUS_INITIALIZING', Symbol('BASE_STATE_STATUS_INITIALIZING'));
+  bottle.constant('BASE_STATE_STATUS_INITIALIZATION_ERROR', Symbol('BASE_STATE_STATUS_INITIALIZATION_ERROR'));
+  bottle.constant('ACTION_ERROR', Symbol('ACTION_ERROR'));
+  bottle.constant('ACTION_START', Symbol('ACTION_START'));
+  bottle.constant('ACTION_NOOP', Symbol('ACTION_NOOP'));
+  bottle.constant('ACTION_COMPLETE', Symbol('ACTION_COMPLETE'));
+};

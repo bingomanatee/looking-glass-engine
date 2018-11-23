@@ -1,0 +1,23 @@
+{
+  "name": "@wonderlandlabs/freactal-engine",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "build": "neutrino build",
+    "lint": "neutrino lint",
+    "test": "neutrino test"
+  },
+  "devDependencies": {
+    "@neutrinojs/airbnb-base": "^8.3.0",
+    "@neutrinojs/jest": "^8.3.0",
+    "@neutrinojs/library": "^8.3.0",
+    "neutrino": "^8.3.0",
+    "raf": "^3.4.1"
+  },
+  "dependencies": {
+    "bottlejs": "^1.7.1",
+    "lodash.get": "^4.4.2",
+    "rxjs": "^6.3.3"
+  }
+}
