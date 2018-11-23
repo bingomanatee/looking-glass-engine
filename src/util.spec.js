@@ -1,43 +1,42 @@
 import bottle from './bottle';
 
 describe('util', () => {
-  let diffStream;
+  let p;
 
   beforeEach(() => {
-    let b = bottle();
-    diffStream = b.container.diffStream;
+    const b = bottle();
+    p = b.container.p;
   });
 
-  describe('diffStream', () => {
-    let stream;
-    let history = [];
-    beforeEach(() => {
-      history = [];
-      stream = diffStream();
-      stream.subscribe((...value) => history.push(value));
+  describe('p', () => {
+    it('should execute an asynchronous function', async () => {
+      let a = 0;
+      const doLater = () => new Promise((res) => { setTimeout(() => { a = 2; res(); }, 100); });
+      expect.assertions(2);
+      const promise = p(doLater);
+      expect(a).toEqual(0);
+      await promise;
+      expect(a).toEqual(2);
     });
 
-    it('should start with no output', () => {
-      expect(history).toEqual([]);
+    it('should pass arguments to an asynchronous function', async () => {
+      let a = 0;
+      const doLater = n => new Promise((res) => { setTimeout(() => { a = n; res(); }, 100); });
+      expect.assertions(2);
+      const promise = p(doLater, 4);
+      expect(a).toEqual(0);
+      await promise;
+      expect(a).toEqual(4);
     });
 
-    it('should express change', () => {
-      stream.next(2);
-      expect(history).toEqual([[2]])
-    })
-
-    it('should ignore identical values', () => {
-      stream.next(2);
-      stream.next(2);
-      expect(history).toEqual([[2]])
-    })
-
-    it('should handle new data', () => {
-      stream.next(2);
-      stream.next(2);
-      stream.next(3);
-      stream.next(2);
-      expect(history).toEqual([[2], [3], [2]])
-    })
+    it('should execute a promise', async () => {
+      let a = 0;
+      const doLater = new Promise((res) => { setTimeout(() => { a = 2; res(); }, 100); });
+      expect.assertions(2);
+      const promise = p(doLater);
+      expect(a).toEqual(0);
+      await promise;
+      expect(a).toEqual(2);
+    });
   });
 });

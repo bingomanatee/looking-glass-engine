@@ -1,7 +1,3 @@
-import {BehaviorSubject} from 'rxjs';
-import {filter, map, pairwise} from 'rxjs/operators';
-import Preact from 'preact';
-
 export default (bottle) => {
   /**
    * decomposes a promise into result and error;
@@ -34,24 +30,7 @@ export default (bottle) => {
     return out;
   });
 
-  bottle.factory('diffStream', ({}) => {
-    return () => {
-      let stream = new BehaviorSubject()
-        .pipe(
-          pairwise(),
-          filter(([a, b]) => {
-            return a !== b;
-          }),
-          map(([a, b]) => b)
-        );
-      stream.next(null);
-      return stream;
-    };
-  });
-
-  bottle.factory('update', () => {
-    return function (delta) {
-      return (context) => Object.assign({}, context.state, delta(context));
-    };
+  bottle.factory('update', () => function (delta) {
+    return context => Object.assign({}, context.state, delta(context));
   });
 };

@@ -1,7 +1,7 @@
 module.exports = {
   use: [
-/*
-    ['@neutrinojs/airbnb',
+
+    ['@neutrinojs/airbnb-base',
       {
         eslint: {
           'rules': {
@@ -17,14 +17,12 @@ module.exports = {
             'no-unused-vars': 'warn',
             'prefer-destructuring': 'off',
             'prefer-template': 'warn',
-            'react/prefer-stateless-function': 'warn',
-            'react/jsx-closing-tag-location': 'warn',
             'max-len': ['warn', {'code': 120}]
           }
         }
       }
     ],
- */
+
     [
       '@neutrinojs/library',
       {

@@ -6,4 +6,4 @@ export default (bottle) => {
   store(bottle);
   storeEngine(bottle);
   storeReducer(bottle);
-}
+};

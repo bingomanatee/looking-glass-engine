@@ -13,11 +13,10 @@ describe('StoreEngineReducer', () => {
   let store2;
   let storeCombined;
   let streamData;
-  let actionStreamData;
   let update;
 
   beforeEach(() => {
-    let b = bottle();
+    const b = bottle();
     StoreEngine = b.container.StoreEngine;
     StoreEngineReducer = b.container.StoreEngineReducer;
     BASE_STATE_STATUS_UNINITIALIZED = b.container.BASE_STATE_STATUS_UNINITIALIZED;
@@ -28,32 +27,32 @@ describe('StoreEngineReducer', () => {
     ACTION_START = b.container.ACTION_START;
     ACTION_COMPLETE = b.container.ACTION_COMPLETE;
     streamData = [];
-    actionStreamData = [];
     store = new StoreEngine({
       state: {
         a: 1,
-        b: 2
-      }
+        b: 2,
+      },
     }, {
-      incB: (context) => Object.assign({}, context.state, {b: context.state.b + 10}),
-      incA: update((context) => ({a: context.state.a + 10})),
+      incB: context => Object.assign({}, context.state, { b: context.state.b + 10 }),
+      incA: update(context => ({ a: context.state.a + 10 })),
       doBoth: async (context) => {
         await context.actions.incA();
         return context.actions.incB();
-      }
+      },
     });
 
-    store2 = new StoreEngine({
+    store2 = new StoreEngine(
+      {
         state: {
           a: 10,
-          c: 44
-        }
+          c: 44,
+        },
       },
       {
-        setA: update((context, a) => ({a})),
-        incA: update(context => ({a: context.state.a + 1})),
-        doubleC: update(context => ({c: 2 * context.stat.c}))
-      }
+        setA: update((context, a) => ({ a })),
+        incA: update(context => ({ a: context.state.a + 1 })),
+        doubleC: update(context => ({ c: 2 * context.stat.c })),
+      },
     );
 
     storeCombined = new StoreEngineReducer([store, store2]);
@@ -65,7 +64,7 @@ describe('StoreEngineReducer', () => {
       .toEqual({
         a: 10,
         b: 2,
-        c: 44
+        c: 44,
       });
   });
 
@@ -80,18 +79,18 @@ describe('StoreEngineReducer', () => {
     expect(store.state)
       .toEqual({
         a: 1,
-        b: 2
+        b: 2,
       });
     expect(store2.state)
       .toEqual({
         a: 11,
-        c: 44
+        c: 44,
       });
     expect(storeCombined.state)
       .toEqual({
         a: 11,
         b: 2,
-        c: 44
+        c: 44,
       });
   });
 });

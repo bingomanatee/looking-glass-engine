@@ -13,7 +13,7 @@ describe('StoreEngine', () => {
   let actionStreamData;
 
   beforeEach(() => {
-    let b = bottle();
+    const b = bottle();
     StoreEngine = b.container.StoreEngine;
     BASE_STATE_STATUS_UNINITIALIZED = b.container.BASE_STATE_STATUS_UNINITIALIZED;
     BASE_STATE_UNINITIALIZED_VALUE = b.container.BASE_STATE_UNINITIALIZED_VALUE;
@@ -26,15 +26,15 @@ describe('StoreEngine', () => {
     store = new StoreEngine({
       state: {
         a: 1,
-        b: 2
-      }
+        b: 2,
+      },
     }, {
-      incB: (context) => Object.assign({}, context.state, {b: context.state.b + 1}),
-      incA: (context) => Object.assign({}, context.state, {a: context.state.a + 1}),
+      incB: context => Object.assign({}, context.state, { b: context.state.b + 1 }),
+      incA: context => Object.assign({}, context.state, { a: context.state.a + 1 }),
       doBoth: async (context) => {
         await context.actions.incA();
         return context.actions.incB();
-      }
+      },
     });
     store.subscribe((...args) => streamData.push(args));
     store.subscribeToActions((...args) => actionStreamData.push(args));
@@ -45,7 +45,7 @@ describe('StoreEngine', () => {
       expect(store.state)
         .toEqual({
           a: 1,
-          b: 2
+          b: 2,
         });
     });
     it('should start with the right status', () => {
@@ -55,13 +55,12 @@ describe('StoreEngine', () => {
     it('should start with the right stream data', () => {
       expect(streamData)
         .toEqual([[{
-            'state': {
-              'a': 1,
-              'b': 2
-            },
-            'status': (BASE_STATE_STATUS_UNINITIALIZED)
-          }]]
-        );
+          state: {
+            a: 1,
+            b: 2,
+          },
+          status: (BASE_STATE_STATUS_UNINITIALIZED),
+        }]]);
     });
   });
 
@@ -69,21 +68,19 @@ describe('StoreEngine', () => {
     it('should start with expected stream states', async () => {
       await store.initialize();
       expect(streamData)
-        .toEqual(
-          [[{
-            'state': {
-              'a': 1,
-              'b': 2
-            },
-            'status': BASE_STATE_STATUS_UNINITIALIZED
-          }], [{
-            'state': {
-              'a': 1,
-              'b': 2
-            },
-            'status': BASE_STATE_STATUS_INITIALIZED
-          }]]
-        );
+        .toEqual([[{
+          state: {
+            a: 1,
+            b: 2,
+          },
+          status: BASE_STATE_STATUS_UNINITIALIZED,
+        }], [{
+          state: {
+            a: 1,
+            b: 2,
+          },
+          status: BASE_STATE_STATUS_INITIALIZED,
+        }]]);
       expect(actionStreamData)
         .toEqual([]);
     });
@@ -95,68 +92,65 @@ describe('StoreEngine', () => {
       expect(store.state)
         .toEqual({
           a: 2,
-          b: 2
+          b: 2,
         });
     });
 
     it('should have an action stream that reflects state change', async () => {
       await store.actions.incA();
       expect(streamData)
-        .toEqual(
-          [[{
-            'state': {
-              'a': 1,
-              'b': 2
-            },
-            'status': BASE_STATE_STATUS_UNINITIALIZED
-          }], [{
-            'state': {
-              'a': 1,
-              'b': 2
-            },
-            'status': BASE_STATE_STATUS_INITIALIZED
-          }], [{
-            'state': {
-              'a': 2,
-              'b': 2
-            },
-            'status': BASE_STATE_STATUS_INITIALIZED
-          }]]
-        );
+        .toEqual([[{
+          state: {
+            a: 1,
+            b: 2,
+          },
+          status: BASE_STATE_STATUS_UNINITIALIZED,
+        }], [{
+          state: {
+            a: 1,
+            b: 2,
+          },
+          status: BASE_STATE_STATUS_INITIALIZED,
+        }], [{
+          state: {
+            a: 2,
+            b: 2,
+          },
+          status: BASE_STATE_STATUS_INITIALIZED,
+        }]]);
       expect(actionStreamData)
         .toEqual([[{
-            'name': 'incA',
-            'params': [],
-            'state': {
-              'a': 1,
-              'b': 2
-            },
-            'status': (BASE_STATE_STATUS_INITIALIZED),
-            'type': (ACTION_START)
-          }], [{
-            'name': 'incA',
-            'params': [],
-            'state': {
-              'a': 2,
-              'b': 2
-            },
-            'status': (BASE_STATE_STATUS_INITIALIZED),
-            'type': (ACTION_START)
-          }], [{
-            'name': 'incA',
-            'params': [],
-            'prevState': {
-              'a': 1,
-              'b': 2
-            },
-            'state': {
-              'a': 2,
-              'b': 2
-            },
-            'status': (BASE_STATE_STATUS_INITIALIZED),
-            'type': (ACTION_COMPLETE)
-          }]]
-        );
+          name: 'incA',
+          params: [],
+          state: {
+            a: 1,
+            b: 2,
+          },
+          status: (BASE_STATE_STATUS_INITIALIZED),
+          type: (ACTION_START),
+        }], [{
+          name: 'incA',
+          params: [],
+          state: {
+            a: 2,
+            b: 2,
+          },
+          status: (BASE_STATE_STATUS_INITIALIZED),
+          type: (ACTION_START),
+        }], [{
+          name: 'incA',
+          params: [],
+          prevState: {
+            a: 1,
+            b: 2,
+          },
+          state: {
+            a: 2,
+            b: 2,
+          },
+          status: (BASE_STATE_STATUS_INITIALIZED),
+          type: (ACTION_COMPLETE),
+        }]]);
     });
   });
 
@@ -169,112 +163,110 @@ describe('StoreEngine', () => {
       expect(store.state)
         .toEqual({
           a: 2,
-          b: 3
+          b: 3,
         });
     });
 
     it('should create the expected stream', () => {
       expect(actionStreamData)
-        .toEqual(
-          [[{
-            'name': 'doBoth',
-            'params': [],
-            'state': {
-              'a': 1,
-              'b': 2
-            },
-            'status': BASE_STATE_STATUS_INITIALIZED,
-            'type': ACTION_START
-          }], [{
-            'name': 'incA',
-            'params': [],
-            'state': {
-              'a': 1,
-              'b': 2
-            },
-            'status': BASE_STATE_STATUS_INITIALIZED,
-            'type': ACTION_START
-          }], [{
-            'name': 'incA',
-            'params': [],
-            'state': {
-              'a': 2,
-              'b': 2
-            },
-            'status': BASE_STATE_STATUS_INITIALIZED,
-            'type': ACTION_START
-          }], [{
-            'name': 'incA',
-            'params': [],
-            'prevState': {
-              'a': 1,
-              'b': 2
-            },
-            'state': {
-              'a': 2,
-              'b': 2
-            },
-            'status': BASE_STATE_STATUS_INITIALIZED,
-            'type': ACTION_COMPLETE
-          }], [{
-            'name': 'incB',
-            'params': [],
-            'state': {
-              'a': 2,
-              'b': 2
-            },
-            'status': BASE_STATE_STATUS_INITIALIZED,
-            'type': ACTION_START
-          }], [{
-            'name': 'incB',
-            'params': [],
-            'state': {
-              'a': 2,
-              'b': 3
-            },
-            'status': BASE_STATE_STATUS_INITIALIZED,
-            'type': ACTION_START
-          }], [{
-            'name': 'incB',
-            'params': [],
-            'prevState': {
-              'a': 2,
-              'b': 2
-            },
-            'state': {
-              'a': 2,
-              'b': 3
-            },
-            'status': BASE_STATE_STATUS_INITIALIZED,
-            'type': ACTION_COMPLETE
-          }], [{
-            'name': 'incB',
-            'params': [],
-            'prevState': {
-              'a': 2,
-              'b': 2
-            },
-            'state': {
-              'a': 2,
-              'b': 3
-            },
-            'status': BASE_STATE_STATUS_INITIALIZED,
-            'type': ACTION_COMPLETE
-          }], [{
-            'name': 'doBoth',
-            'params': [],
-            'prevState': {
-              'a': 2,
-              'b': 3
-            },
-            'state': {
-              'a': 2,
-              'b': 3
-            },
-            'status': BASE_STATE_STATUS_INITIALIZED,
-            'type': ACTION_COMPLETE
-          }]]
-        );
+        .toEqual([[{
+          name: 'doBoth',
+          params: [],
+          state: {
+            a: 1,
+            b: 2,
+          },
+          status: BASE_STATE_STATUS_INITIALIZED,
+          type: ACTION_START,
+        }], [{
+          name: 'incA',
+          params: [],
+          state: {
+            a: 1,
+            b: 2,
+          },
+          status: BASE_STATE_STATUS_INITIALIZED,
+          type: ACTION_START,
+        }], [{
+          name: 'incA',
+          params: [],
+          state: {
+            a: 2,
+            b: 2,
+          },
+          status: BASE_STATE_STATUS_INITIALIZED,
+          type: ACTION_START,
+        }], [{
+          name: 'incA',
+          params: [],
+          prevState: {
+            a: 1,
+            b: 2,
+          },
+          state: {
+            a: 2,
+            b: 2,
+          },
+          status: BASE_STATE_STATUS_INITIALIZED,
+          type: ACTION_COMPLETE,
+        }], [{
+          name: 'incB',
+          params: [],
+          state: {
+            a: 2,
+            b: 2,
+          },
+          status: BASE_STATE_STATUS_INITIALIZED,
+          type: ACTION_START,
+        }], [{
+          name: 'incB',
+          params: [],
+          state: {
+            a: 2,
+            b: 3,
+          },
+          status: BASE_STATE_STATUS_INITIALIZED,
+          type: ACTION_START,
+        }], [{
+          name: 'incB',
+          params: [],
+          prevState: {
+            a: 2,
+            b: 2,
+          },
+          state: {
+            a: 2,
+            b: 3,
+          },
+          status: BASE_STATE_STATUS_INITIALIZED,
+          type: ACTION_COMPLETE,
+        }], [{
+          name: 'incB',
+          params: [],
+          prevState: {
+            a: 2,
+            b: 2,
+          },
+          state: {
+            a: 2,
+            b: 3,
+          },
+          status: BASE_STATE_STATUS_INITIALIZED,
+          type: ACTION_COMPLETE,
+        }], [{
+          name: 'doBoth',
+          params: [],
+          prevState: {
+            a: 2,
+            b: 3,
+          },
+          state: {
+            a: 2,
+            b: 3,
+          },
+          status: BASE_STATE_STATUS_INITIALIZED,
+          type: ACTION_COMPLETE,
+        }]]);
     });
   });
 });

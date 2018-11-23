@@ -1,22 +1,20 @@
-import {combineLatest, BehaviorSubject} from 'rxjs';
-import {map, pairwise, filter} from 'rxjs/operators';
+import { combineLatest, BehaviorSubject } from 'rxjs';
+import { map, pairwise, filter } from 'rxjs/operators';
 import lGet from 'lodash.get';
 
 export default (bottle) => {
   bottle.factory(
     'Store',
     ({
-       BASE_STATE_UNINITIALIZED_VALUE,
-       BASE_STATE_STATUS_UNINITIALIZED,
-       BASE_STATE_STATUS_INITIALIZING,
-       BASE_STATE_STATUS_INITIALIZATION_ERROR,
-       BASE_STATE_STATUS_INITIALIZED,
-       p,
-     }) => {
-
+      BASE_STATE_UNINITIALIZED_VALUE,
+      BASE_STATE_STATUS_UNINITIALIZED,
+      BASE_STATE_STATUS_INITIALIZING,
+      BASE_STATE_STATUS_INITIALIZATION_ERROR,
+      BASE_STATE_STATUS_INITIALIZED,
+      p,
+    }) => {
       class Store {
         constructor(props = null) {
-
           let state = BASE_STATE_UNINITIALIZED_VALUE;
           let initializer = null;
           if (props) {
@@ -45,13 +43,11 @@ export default (bottle) => {
           });
 
           this._stream = combineLatest(this._stateStream, this._statusStream)
-            .pipe(
-              map(([state, status]) => {
-                return {
-                  state,
-                  status
-                };
-              }));
+          // eslint-disable-next-line no-shadow
+            .pipe(map(([state, status]) => ({
+              state,
+              status,
+            })));
 
           this._statusStream.next(BASE_STATE_STATUS_UNINITIALIZED);
           this.state = state;
@@ -111,5 +107,6 @@ export default (bottle) => {
       }
 
       return Store;
-    });
-}
+    },
+  );
+};
