@@ -6,7 +6,7 @@ export default (bottle) => {
   bottle.factory(
     'StoreEngine',
     ({
-      Store, ACTION_START, ACTION_ERROR, ACTION_COMPLETE, ACTION_NOOP, p,
+      Store, ACTION_START, ACTION_ERROR, ACTION_COMPLETE, p,
     }) => {
       class StoreEngine extends Store {
         constructor(props, actions) {
