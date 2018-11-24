@@ -24,6 +24,7 @@ export default (bottle) => {
           if (typeof state === 'object') {
             return { ...memo, ...state };
           }
+          // eslint-disable-next-line no-console
           console.log('non-object state:', state);
           return state;
         }

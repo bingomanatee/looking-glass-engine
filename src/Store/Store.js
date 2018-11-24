@@ -1,6 +1,7 @@
 import { combineLatest, BehaviorSubject } from 'rxjs';
 import { map, pairwise, filter } from 'rxjs/operators';
 import lGet from 'lodash.get';
+import lClone from 'lodash.clonedeep';
 
 export default (bottle) => {
   bottle.factory(
@@ -50,7 +51,7 @@ export default (bottle) => {
             })));
 
           this._statusStream.next(BASE_STATE_STATUS_UNINITIALIZED);
-          this.state = state;
+          this.state = lClone(state);
 
           if (initializer) {
             if (typeof initializer !== 'function') {

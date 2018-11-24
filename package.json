@@ -1,6 +1,6 @@
 {
   "name": "@wonderlandlabs/freactal-engine",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "main": "build/index.js",
   "license": "MIT",
   "scripts": {
@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "bottlejs": "^1.7.1",
+    "lodash.clonedeep": "^4.5.0",
     "lodash.get": "^4.4.2",
     "rxjs": "^6.3.3"
   }
