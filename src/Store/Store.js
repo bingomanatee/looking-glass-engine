@@ -1,5 +1,5 @@
 import { combineLatest, BehaviorSubject } from 'rxjs';
-import { map, pairwise, filter } from 'rxjs/operators';
+import { map } from 'rxjs/operators';
 import lGet from 'lodash.get';
 import lClone from 'lodash.clonedeep';
 
