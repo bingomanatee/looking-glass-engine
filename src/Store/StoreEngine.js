@@ -10,7 +10,12 @@ export default (bottle) => {
     }) => {
       class StoreEngine extends Store {
         constructor(props, actions) {
+          const lActions = actions || lGet(props, 'actions', lGet(props, 'effects'));
+          delete props.actions;
+
           super(props);
+
+          this.actions = lActions;
 
           this._actionsStream = new Subject();
 
@@ -19,16 +24,21 @@ export default (bottle) => {
               ...store,
               ...action,
             })));
+        }
 
-          this._actions = {};
-          const lActions = actions || lGet(props, 'actions', {});
-          Object.keys(lActions).forEach((actionName) => {
-            this._actions[actionName] = async (...params) => this.do(actionName, lActions[actionName], ...params);
-          });
+        get effects() {
+          return this.actions;
         }
 
         get actions() {
           return this._actions;
+        }
+
+        set actions(actions) {
+          this._actions = {};
+          Object.keys(actions).forEach((actionName) => {
+            this._actions[actionName] = async (...params) => this.do(actionName, actions[actionName], ...params);
+          });
         }
 
         subscribeToActions(...args) {
