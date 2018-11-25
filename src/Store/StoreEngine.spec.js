@@ -11,6 +11,7 @@ describe('StoreEngine', () => {
   let store;
   let streamData;
   let actionStreamData;
+  let update;
 
   beforeEach(() => {
     const b = bottle();
@@ -19,6 +20,7 @@ describe('StoreEngine', () => {
     BASE_STATE_UNINITIALIZED_VALUE = b.container.BASE_STATE_UNINITIALIZED_VALUE;
     BASE_STATE_STATUS_INITIALIZING = b.container.BASE_STATE_STATUS_INITIALIZING;
     BASE_STATE_STATUS_INITIALIZED = b.container.BASE_STATE_STATUS_INITIALIZED;
+    update = b.container.update;
     ACTION_START = b.container.ACTION_START;
     ACTION_COMPLETE = b.container.ACTION_COMPLETE;
     streamData = [];
@@ -267,6 +269,18 @@ describe('StoreEngine', () => {
           status: BASE_STATE_STATUS_INITIALIZED,
           type: ACTION_COMPLETE,
         }]]);
+    });
+  });
+
+  describe('with update in actions', () => {
+    beforeEach(() => {
+      store = new StoreEngine({ a: 1, b:2 }, { addToA: update(({ state }, n) => ({ a: state.a + n })) });
+    });
+
+    it('should take a parameter to update', async () => {
+      await store.actions.addToA(2);
+      expect(store.state.a).toEqual(3);
+      expect(store.state.b).toEqual(2);
     });
   });
 });

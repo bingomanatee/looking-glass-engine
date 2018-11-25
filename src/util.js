@@ -31,6 +31,6 @@ export default (bottle) => {
   });
 
   bottle.factory('update', () => function (delta) {
-    return context => Object.assign({}, context.state, delta(context));
+    return (context, ...args) => Object.assign({}, context.state, delta(context, ...args));
   });
 };
