@@ -16,7 +16,14 @@ export default (bottle) => {
         const localEngines = [...engines];
         const first = localEngines.shift();
 
-        return localEngines.reduce((actions, engine) => engine.getActions(actions), first.actions);
+        return localEngines.reduce((memo, engine) => {
+          const actions = { ...memo };
+          Object.keys(engine.mutators).forEach((name) => {
+            actions[name] = async (...params) => engine.perform({ name, actions, params });
+          });
+
+          return actions;
+        }, first.actions);
       };
 
       const defaultStateReducer = (memo, state) => {

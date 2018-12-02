@@ -35,10 +35,9 @@ describe('StoreEngineReducer', () => {
     }, {
       incB: () => state => Object.assign({}, state, { b: state.b + 10 }),
       incA: () => state => Object.assign({}, state, { a: state.a + 1 }),
-      doBoth: async (context) => {
-        console.log('doing Both');
-        await context.actions.incA();
-        await context.actions.incB();
+      doBoth: async (actions) => {
+        await actions.incA();
+        await actions.incB();
         return state => state;
       },
     });

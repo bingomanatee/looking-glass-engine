@@ -31,6 +31,11 @@ export default (bottle) => {
   });
 
   bottle.factory('update', () => function (delta) {
-    return (actions, ...args) => state => Object.assign({}, state, delta(actions, ...args)(state));
+    return (actions, ...args) => (state) => {
+      const change = delta(actions, ...args)(state);
+      return Object.assign({}, state, change);
+    };
   });
+
+  bottle.factory('mergeIntoState', () => change => state => Object.assign({}, state, change));
 };

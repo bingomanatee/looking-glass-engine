@@ -33,7 +33,7 @@ describe('StoreEngine', () => {
     }, {
       incB: () => state => Object.assign({}, state, { b: state.b + 1 }),
       incA: () => state => Object.assign({}, state, { a: state.a + 1 }),
-      doBoth: async ({ actions }) => {
+      doBoth: async (actions) => {
         await actions.incA();
         await actions.incB();
         return state => state;
@@ -45,7 +45,7 @@ describe('StoreEngine', () => {
 
   describe('nested actions', () => {
     beforeEach(async () => {
-      await store.actions.doBoth();
+      return store.actions.doBoth();
     });
 
     it('should execute both actions', () => {
@@ -57,9 +57,9 @@ describe('StoreEngine', () => {
     });
   });
 
-  describe.skip('with update in actions', () => {
+  describe('with update in actions', () => {
     beforeEach(() => {
-      store = new StoreEngine({ a: 1, b: 2 }, { addToA: update(({ state }, n) => ({ a: state.a + n })) });
+      store = new StoreEngine({ a: 1, b: 2 }, { addToA: update((actions, n) => ({ a }) => ({ a: a + n })) });
     });
 
     it('should take a parameter to update', async () => {
