@@ -12,7 +12,12 @@ export default (bottle) => {
       BASE_STATE_STATUS_INITIALIZATION_ERROR,
       BASE_STATE_STATUS_INITIALIZED,
     }) => {
-      const defaultActionReducer = (memo, engine) => ({ ...memo, ...engine.actions });
+      const defaultActionReducer = ({ engines }) => {
+        const localEngines = [...engines];
+        const first = localEngines.shift();
+
+        return localEngines.reduce((actions, engine) => engine.getActions(actions), first.actions);
+      };
 
       const defaultStateReducer = (memo, state) => {
         if (memo === BASE_STATE_UNINITIALIZED_VALUE) {
@@ -45,15 +50,7 @@ export default (bottle) => {
           this._combinedStateStreams.subscribe((state) => {
             this.state = state;
           });
-          this.actions = engines.reduce(this._actionReducer, {});
-          Object.keys(this.actions)
-            .forEach((actionName) => {
-              const action = this.actions[actionName];
-              this.actions[actionName] = async (...args) => {
-                await this.initialize();
-                return action(...args);
-              };
-            });
+          this.actions = this._actionReducer(this);
         }
 
         initialize() {

@@ -55,10 +55,9 @@ If a property with NEITHER initialValue or initializer is passed, IT is consider
 
 ### Actions
 
-Actions are functions that take in the engine and optional arguments and return a new state value,
-or a promise that results in a new state value. 
-If passed through the update helper they behave like a React `.setState` method, 
-updating the properties of the object they return. 
+Actions are functions that take in the engine's actions and optional arguments 
+and return a function that takes in the states value and returns a modified state;
+or a promise that results in that function. 
 
 Actions can call other actions from the engine, other promise actions, etc. They can be asynchronous. 
 
@@ -67,12 +66,11 @@ So, all these actions are equivalent:
 ````javascript
 
 {
-  doubleA: ({state}) => {
+  doubleA: () => (state) => {
       return Object.assign({}, state, {a: 2 * state.a});
     },
-  doubleAWithUpdate: update(({state}) => ({a: 2 * state.a}),
-  doubleAWithPromise: ({state}) => new Promise((resolve) => {
-    resolve(Object.assign({}, state, {a: 2 * state.a}))
+  doubleAWithPromise: () => new Promise((resolve) => {
+    resolve((state) => Object.assign({}, state, {a: 2 * state.a}))
   });
 }
 

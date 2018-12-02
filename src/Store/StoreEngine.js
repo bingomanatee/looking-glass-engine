@@ -10,12 +10,12 @@ export default (bottle) => {
     }) => {
       class StoreEngine extends Store {
         constructor(props, actions) {
-          const lActions = actions || lGet(props, 'actions', lGet(props, 'effects'));
+          const mutators = actions || lGet(props, 'actions', lGet(props, 'effects', {}));
           delete props.actions;
 
           super(props);
 
-          this.actions = lActions;
+          this.mutators = mutators;
 
           this._actionsStream = new Subject();
 
@@ -26,26 +26,34 @@ export default (bottle) => {
             })));
         }
 
+        set mutators(mutators) {
+          this._mutators = mutators;
+        }
+
+        get mutators() {
+          return this._mutators;
+        }
+
         get effects() {
           return this.actions;
         }
 
         get actions() {
-          return this._actions;
+          return this.getActions();
         }
 
-        set actions(actions) {
-          this._actions = {};
-          Object.keys(actions).forEach((actionName) => {
-            this._actions[actionName] = async (...params) => this.do(actionName, actions[actionName], ...params);
+        getActions(actions = {}) {
+          Object.keys(this.mutators).forEach((name) => {
+            actions[name] = (...params) => this._execute(name, this.mutators[name], actions, params);
           });
+          return actions;
         }
 
         subscribeToActions(...args) {
           return this._actionStream.subscribe(...args);
         }
 
-        async do(name, fn, ...params) {
+        async _execute(name, mutator, actions = {}, params = []) {
           await this.initialize();
           if (!this.actions[name]) {
             return this._actionsStream.next({
@@ -61,8 +69,7 @@ export default (bottle) => {
             type: ACTION_START,
           });
 
-          const [state, error] = await p(fn, this, ...params);
-
+          const [delta, error] = await p(mutator, { actions }, ...params);
           if (error) {
             this._actionsStream.next({
               name,
@@ -70,18 +77,18 @@ export default (bottle) => {
               type: ACTION_ERROR,
               error,
             });
-            return this.state;
+          } else {
+            const prevState = this.state;
+            this.state = delta(this.state);
+            this._actionsStream.next({
+              type: ACTION_COMPLETE,
+              name,
+              params,
+              state: this.state,
+              prevState,
+            });
           }
-          const prevState = this.state;
-          this.state = state;
-          this._actionsStream.next({
-            type: ACTION_COMPLETE,
-            name,
-            params,
-            state,
-            prevState,
-          });
-          return state;
+          return this.state;
         }
       }
 

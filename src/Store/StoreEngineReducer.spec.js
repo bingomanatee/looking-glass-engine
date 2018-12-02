@@ -33,11 +33,13 @@ describe('StoreEngineReducer', () => {
         b: 2,
       },
     }, {
-      incB: context => Object.assign({}, context.state, { b: context.state.b + 10 }),
-      incA: update(context => ({ a: context.state.a + 10 })),
+      incB: () => state => Object.assign({}, state, { b: state.b + 10 }),
+      incA: () => state => Object.assign({}, state, { a: state.a + 1 }),
       doBoth: async (context) => {
+        console.log('doing Both');
         await context.actions.incA();
-        return context.actions.incB();
+        await context.actions.incB();
+        return state => state;
       },
     });
 
@@ -49,9 +51,8 @@ describe('StoreEngineReducer', () => {
         },
       },
       {
-        setA: update((context, a) => ({ a })),
-        incA: update(context => ({ a: context.state.a + 1 })),
-        doubleC: update(context => ({ c: 2 * context.stat.c })),
+        incA: () => state => Object.assign({}, state, { a: state.a + 1 }),
+        doubleC: () => state => Object.assign({}, state, { c: state.c * 2 }),
       },
     );
 
@@ -71,7 +72,7 @@ describe('StoreEngineReducer', () => {
   it('have the expected methods', async () => {
     expect(Object.keys(storeCombined.actions)
       .sort())
-      .toEqual(['doBoth', 'doubleC', 'incA', 'incB', 'setA']);
+      .toEqual(['doBoth', 'doubleC', 'incA', 'incB']);
   });
 
   it('should prefer the second incA', async () => {
