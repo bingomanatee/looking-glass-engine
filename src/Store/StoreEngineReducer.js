@@ -47,7 +47,7 @@ export default (bottle) => {
         constructor(engines, props = {}) {
           super({ initialState: BASE_STATE_UNINITIALIZED_VALUE });
           this.engines = engines;
-          this._stateReducer = lGet(props, 'storeReducer', defaultStateReducer);
+          this._stateReducer = lGet(props, 'stateReducer', defaultStateReducer);
           this._actionReducer = lGet(props, 'actionReducer', defaultActionReducer);
 
           const engineStreams = engines.map(e => e._stateStream);
