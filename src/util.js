@@ -37,5 +37,11 @@ export default (bottle) => {
     };
   });
 
+  bottle.factory('isPromise', () => (subject) => {
+    if (!subject) return false;
+    if (subject instanceof Promise) return true;
+    return Promise.resolve(subject) === subject;
+  });
+
   bottle.factory('mergeIntoState', () => change => state => Object.assign({}, state, change));
 };

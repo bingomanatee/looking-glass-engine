@@ -1,5 +1,5 @@
 import { combineLatest, BehaviorSubject } from 'rxjs';
-import { map } from 'rxjs/operators';
+import { map, distinctUntilChanged } from 'rxjs/operators';
 import lGet from 'lodash.get';
 import lClone from 'lodash.clonedeep';
 
@@ -13,11 +13,30 @@ export default (bottle) => {
       BASE_STATE_STATUS_INITIALIZATION_ERROR,
       BASE_STATE_STATUS_INITIALIZED,
       p,
+      isPromise,
     }) => {
       class Store {
         constructor(props = null) {
-          let state = BASE_STATE_UNINITIALIZED_VALUE;
+          const { state, initializer } = this._parseProps(props);
+          this._initStateStream();
+          this._initStatusStream();
+
+          this._stream = combineLatest(this._stateStream, this._statusStream)
+            .pipe(map(([streamedState, streamedStatus]) => ({
+              state: streamedState,
+              status: streamedStatus,
+            })), distinctUntilChanged());
+
+          this.state = state || BASE_STATE_UNINITIALIZED_VALUE;
+
+          this._statusStream.next(BASE_STATE_STATUS_UNINITIALIZED);
+
+          this._initializer = initializer;
+        }
+
+        _parseProps(props) {
           let initializer = null;
+          let state = BASE_STATE_UNINITIALIZED_VALUE;
           if (props) {
             if (typeof props === 'function') {
               initializer = props;
@@ -32,33 +51,24 @@ export default (bottle) => {
               state = props;
             }
           }
+          return {
+            state,
+            initializer,
+          };
+        }
 
-          this._stateStream = new BehaviorSubject();
-          this._stateStream.subscribe((next) => {
-            this._state = next;
-          });
-
-          this._statusStream = new BehaviorSubject();
+        _initStatusStream() {
+          this._statusStream = new BehaviorSubject(BASE_STATE_STATUS_UNINITIALIZED);
           this._statusStream.subscribe((next) => {
             this._status = next;
           });
+        }
 
-          this._stream = combineLatest(this._stateStream, this._statusStream)
-          // eslint-disable-next-line no-shadow
-            .pipe(map(([state, status]) => ({
-              state,
-              status,
-            })));
-
-          this._statusStream.next(BASE_STATE_STATUS_UNINITIALIZED);
-          this.state = lClone(state);
-
-          if (initializer) {
-            if (typeof initializer !== 'function') {
-              throw new Error('bad initializer', initializer);
-            }
-            this._initializer = initializer;
-          }
+        _initStateStream() {
+          this._stateStream = new BehaviorSubject(BASE_STATE_UNINITIALIZED_VALUE);
+          this._stateStream.subscribe((next) => {
+            this._state = next;
+          });
         }
 
         get state() {
@@ -77,33 +87,77 @@ export default (bottle) => {
           this._stream.subscribe(...args);
         }
 
+
+        get isInitialized() {
+          return (this.status === BASE_STATE_STATUS_INITIALIZED);
+        }
+
+        get isInitializeError() {
+          return (this.status === BASE_STATE_STATUS_INITIALIZATION_ERROR);
+        }
+
+        /**
+         * executes the _initialize function if it exists.
+         * this is a "quasi-asynchronous process.
+         *
+         * -- if the state has been initialized it returns true.
+         * -- if _initializer doesn't exist it returns true.
+         * -- if _initializer is synchronous (and not run already) it sets state to its output
+         *    and returns true.
+         * -- if _initilizer returns a promise it returns that promise chained with
+         *    capturing the output and returning true from that promise.
+         *
+         * so it can be both a synchrnous or asynchronous process.
+         *
+         * if this is too much (yes) use onInit() to ensure your action
+         * executes after state is initialized.
+         *
+         * @returns {boolean || Promise}
+         */
         initialize() {
-          if (!this._initPromise) {
-            this._initPromise = new Promise(async (resolve, reject) => {
-              if (!this._initializer) {
-                if (this.state !== BASE_STATE_STATUS_INITIALIZED) {
-                  this._statusStream.next(BASE_STATE_STATUS_INITIALIZED);
-                }
-                resolve();
-                return;
-              } else if (this.state === BASE_STATE_STATUS_INITIALIZED) {
-                resolve();
-                return;
-              }
-              this._statusStream.next(BASE_STATE_STATUS_INITIALIZING);
-              const [state, error] = await p(this._initializer, this);
-              if (error) {
-                this.initializionError = error;
-                this._statusStream.next(BASE_STATE_STATUS_INITIALIZATION_ERROR);
-                reject(error);
-              } else {
-                this.state = state;
+          if (this._initPromise) return this._initPromise;
+          if (this.isInitialized) return true;
+          if (this.isInitializeError) return false;
+
+          this._statusStream.next(BASE_STATE_STATUS_INITIALIZING);
+          if (this._initializer) {
+            const resultOfInitializer = this._initializer();
+            if (isPromise(resultOfInitializer)) {
+              this._initPromise = resultOfInitializer.then((value) => {
+                this.state = value;
                 this._statusStream.next(BASE_STATE_STATUS_INITIALIZED);
-                resolve();
-              }
-            });
+                this._initPromise = false;
+                return true;
+              })
+                .catch((err) => {
+                  this.initializationError = err;
+                  this._initPromise = false;
+                  return false;
+                });
+              return this._initPromise;
+            }
+            this.state = resultOfInitializer;
           }
-          return this._initPromise;
+          this._statusStream.next(BASE_STATE_STATUS_INITIALIZED);
+          return true;
+        }
+
+        onInit(fn, onError) {
+          if (this.isInitialized) {
+            return fn(this);
+          }
+          if (this.isInitializeError) return onError(this, this.initializationError);
+          const init = this.initialize();
+          if (init === true) {
+            return fn(this);
+          }
+          if (init === false) {
+            return onError(this, this.initializationError);
+          }
+          if (isPromise(init)) {
+            init.then(() => fn(this))
+              .catch(() => onError(this.initializationError));
+          }
         }
       }
 
