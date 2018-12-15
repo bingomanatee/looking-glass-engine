@@ -20,18 +20,21 @@ export default (bottle) => {
           const { state, initializer } = this._parseProps(props);
           this._initStateStream();
           this._initStatusStream();
-
-          this._stream = combineLatest(this._stateStream, this._statusStream)
-            .pipe(map(([streamedState, streamedStatus]) => ({
-              state: streamedState,
-              status: streamedStatus,
-            })), distinctUntilChanged());
-
-          this.state = state || BASE_STATE_UNINITIALIZED_VALUE;
-
+          this._initStream();
+          this.state = state;
           this._statusStream.next(BASE_STATE_STATUS_UNINITIALIZED);
-
           this._initializer = initializer;
+        }
+
+        _initStream() {
+          this._stream = combineLatest(this._stateStream, this._statusStream)
+            .pipe(
+              map(([streamedState, streamedStatus]) => ({
+                state: streamedState,
+                status: streamedStatus,
+              })),
+              distinctUntilChanged(),
+            );
         }
 
         _parseProps(props) {
