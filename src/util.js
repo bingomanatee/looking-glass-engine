@@ -30,6 +30,12 @@ export default (bottle) => {
     return out;
   });
 
+  bottle.factory('call', () => (fn, ...args) => {
+    if (fn && typeof fn === 'function') {
+      fn(args);
+    }
+  });
+
   bottle.factory('update', () => function (delta) {
     return (actions, ...args) => (state) => {
       const change = delta(actions, ...args)(state);

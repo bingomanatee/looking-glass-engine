@@ -1,17 +1,20 @@
-import { combineLatest, Subject, from } from 'rxjs';
-import { map } from 'rxjs/operators';
+import { Subject, from } from 'rxjs';
+import { map, filter, withLatestFrom } from 'rxjs/operators';
 import lGet from 'lodash.get';
 import cloneDeep from 'lodash.clonedeep';
 
 const STATE_UNSET = Symbol('STATE_UNSET');
-
+const NODE_ENV = process.env.NODE_ENV;
 export default (bottle) => {
+  bottle.factory('now', () => () => {
+    if (NODE_ENV === 'test') return 100000;
+    return Date.now();
+  });
   bottle.factory(
     'StoreEngine',
     ({
-      isPromise,
-      Store, ACTION_START, ACTION_ERROR, ACTION_COMPLETE, p,
-      BASE_STATE_STATUS_INITIALIZED,
+      isPromise, p, now,
+      Store, ACTION_START, ACTION_ERROR, ACTION_COMPLETE,
     }) => {
       class StoreEngine extends Store {
         constructor(props, actions) {
@@ -22,16 +25,22 @@ export default (bottle) => {
 
           this.mutators = mutators;
 
-          this._actionsStream = new Subject();
 
-          this._actionStream = combineLatest(this._stream, this._actionsStream)
-            .pipe(map(([state, action]) =>
-              // console.log('state: ', state);
-            //  console.log('action:', action);
-              ({
-                ...action,
-                ...state,
-              })));
+          this._initActionStream();
+        }
+
+        _initActionStream() {
+          this._actionsStream = new Subject();
+          this._eventMap = new Map();
+          this._actionStream = this._actionsStream
+            .pipe(
+              withLatestFrom(this._stream),
+              map(([action, state]) =>
+                ({
+                  ...state,
+                  ...action,
+                })),
+            );
         }
 
         set mutators(mutators) {
@@ -59,13 +68,14 @@ export default (bottle) => {
         }
 
         _actionError({
-          name, prevState, params = [], reject,
+          name, prevState, params = [], reject, tid,
         }, error) {
           this._actionsStream.next({
             name,
             params,
             type: ACTION_ERROR,
             error,
+            tid,
           });
           if (reject) {
             reject(error);
@@ -73,7 +83,7 @@ export default (bottle) => {
         }
 
         _actionComplete({
-          name, params = [], prevState, resolve,
+          name, params = [], prevState, resolve, tid,
         }, state = STATE_UNSET) {
           if (state !== STATE_UNSET) {
             this.state = state;
@@ -86,18 +96,19 @@ export default (bottle) => {
             params,
             state: nextState,
             prevState,
+            tid,
           });
 
           resolve(state);
         }
 
         transactionID() {
-          if (!this._tid) this.tid = 0;
+          if (!this._tid) this._tid = 0;
           const tid = this._tid;
           this._tid += 1;
           return {
             tid,
-            on: Date.now(),
+            on: now(),
           };
         }
 
@@ -130,13 +141,13 @@ export default (bottle) => {
             }
 
             this._actionsStream.next({
-              name,
               params,
+              name,
+              tid,
               type: ACTION_START,
             });
 
-            const prevState = cloneDeep(this.state);
-            endProps.prevState = prevState;
+            endProps.prevState = cloneDeep(this.state);
             let result;
             try {
               result = mutator(actions, ...params);

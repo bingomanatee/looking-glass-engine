@@ -6,7 +6,7 @@
   "scripts": {
     "build": "neutrino build",
     "lint": "neutrino lint",
-    "test": "neutrino test"
+    "test": "NODE_ENV=test neutrino test"
   },
   "devDependencies": {
     "@neutrinojs/airbnb-base": "^8.3.0",
