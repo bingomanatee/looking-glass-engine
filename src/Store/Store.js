@@ -1,3 +1,4 @@
+/* eslint-disable no-unreachable */
 import { combineLatest, BehaviorSubject, from } from 'rxjs';
 import { map, distinctUntilChanged, pairwise, filter } from 'rxjs/operators';
 import lGet from 'lodash.get';
@@ -8,7 +9,7 @@ export default (bottle) => {
     'Store',
     ({
       STORE_STATE_UNSET_VALUE,
-      STORE_STATUS_UNINITIALIZED,
+      STORE_STATUS_NEW,
       STORE_STATUS_INITIALIZING,
       STORE_STATUS_INITIALIZATION_ERROR,
       STORE_STATUS_INITIALIZED,
@@ -31,36 +32,53 @@ export default (bottle) => {
             this._initDebugStream();
           }
 
-          this._setState(STORE_STATE_UNSET_VALUE);
-          this._setStatus(STORE_STATUS_UNINITIALIZED);
+          this._setStatus(STORE_STATUS_NEW);
         }
 
+        /**
+         * props can be:
+         *
+         * 1: a function, in which case its the initializer.
+         * 2: an object with state or initializer as props, in which case its a parameter group
+         * 3. an object without state or initializer in which case its the firstState
+         *
+         * @param props
+         * @private
+         */
+
         _parseProps(props) {
-          let initializer = null;
+          this._firstState = STORE_STATE_UNSET_VALUE;
+          if (!props) return;
+          if (typeof props === 'function') {
+            props = { initializer: props };
+          }
           let debug = false;
-          let firstState = null;
-          if (props) {
-            if (typeof props === 'function') {
-              initializer = props;
-            } else if (typeof props === 'object') {
-              if ('state' in props || 'initializer' in props) {
-                initializer = lGet(props, 'initializer');
-                firstState = lGet(props, 'state', STORE_STATE_UNSET_VALUE);
-                debug = lGet(props, 'debug', false);
-              } else {
-                firstState = props;
-              }
+          let initializer = null;
+          let firstState = STORE_STATE_UNSET_VALUE;
+          let noChangeBeforeInit = false;
+
+          if (typeof props === 'object') {
+            if ('state' in props || 'initializer' in props) {
+              initializer = lGet(props, 'initializer', initializer);
+              firstState = lGet(props, 'state', firstState);
+              debug = lGet(props, 'debug', debug);
+              noChangeBeforeInit = lGet(props, 'noChangeBeforeInit', noChangeBeforeInit);
             } else {
               firstState = props;
             }
+
+            this._firstState = firstState;
+            this._initializer = initializer;
+          } else {
+            this._firstState = props;
           }
-          this._firstState = firstState;
-          this._initializer = initializer;
+
+          this._noChangeBeforeInit = noChangeBeforeInit;
           this._debug = debug;
         }
 
         _initStateStream() {
-          this._stateStream = new BehaviorSubject(STORE_STATE_UNSET_VALUE)
+          this._stateStream = new BehaviorSubject(this._firstState)
             .pipe(distinctUntilChanged());
           this._stateStream.subscribe((next) => {
             this._state = next;
@@ -70,9 +88,6 @@ export default (bottle) => {
         _initErrorStream() {
           this._errorStream = new BehaviorSubject()
             .pipe(distinctUntilChanged());
-          this._errorStream.subscribe((next) => {
-            this._error = next;
-          });
         }
 
         _initDebugStream() {
@@ -161,9 +176,11 @@ export default (bottle) => {
 
         _initChangeStream() {
           this._changeStream = new BehaviorSubject(NOT_SET);
-          this._changeStream.subscribe((params) => {
+          this._changeStream.subscribe((params = NOT_SET) => {
             if (params === NOT_SET) return;
-
+            if (typeof params === 'function') {
+              params = { change: params };
+            }
             this._debugMessage('change stream listener', '(initial)', params);
             const {
               change = NOT_SET,
@@ -171,6 +188,23 @@ export default (bottle) => {
               fail = NOT_SET,
               status = NOT_SET,
             } = params;
+
+            if (this._noChangeBeforeInit && !status) {
+              switch (this.status) {
+                case STORE_STATUS_INITIALIZING:
+                  this._changeError(new Error('cannot process change before initialization'), params);
+                  return;
+                  break;
+
+                case STORE_STATUS_NEW:
+                  this._changeError(new Error('cannot process change before initialization'), params);
+                  return;
+                  break;
+
+                default:
+                  // continue;
+              }
+            }
 
             if (this.isInitializeError) {
               call(fail, this.initializationError);
@@ -269,12 +303,12 @@ export default (bottle) => {
         initialize() {
           if (this._initPromise) return this._initPromise;
 
-          if (this._initialState) {
+          if (this._firstState) {
             if (this._initializer) {
-              this._change(this._initialState, STORE_STATUS_INITIALIZING);
+              this._change(this._firstState, STORE_STATUS_INITIALIZING);
               this._initPromise = this._change(this._initializer, STORE_STATUS_INITIALIZED);
             } else {
-              this._initPromise = this._change(this._initialState, STORE_STATUS_INITIALIZED);
+              this._initPromise = this._change(this._firstState, STORE_STATUS_INITIALIZED);
             }
           } else if (this._initializer) {
             this._initPromise = this._change(this._initializer, STORE_STATUS_INITIALIZED);

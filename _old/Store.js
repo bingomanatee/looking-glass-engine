@@ -19,7 +19,7 @@ export default (bottle) => {
         constructor(props = null) {
           const { state, initializer, debug } = this._parseProps(props);
           this._debug = debug;
-          this._initialState = state;
+          this._firstState = state;
           this._initializer = initializer;
 
           this._initStateStream();
@@ -156,8 +156,8 @@ export default (bottle) => {
               return this._initPromise;
             }
             this.state = resultOfInitializer;
-          } else if (this._initialState) {
-            this.state = this._initialState;
+          } else if (this._firstState) {
+            this.state = this._firstState;
           }
           this._setStatus(STORE_STATUS_INITIALIZED);
           return true;

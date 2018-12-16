@@ -8,7 +8,7 @@ export default (bottle) => {
     'Engine',
     ({
       STORE_STATE_UNSET_VALUE,
-      STORE_STATUS_UNINITIALIZED,
+      STORE_STATUS_NEW,
       STORE_STATUS_INITIALIZING,
       STORE_STATUS_INITIALIZATION_ERROR,
       STORE_STATUS_INITIALIZED,
@@ -27,6 +27,7 @@ export default (bottle) => {
           super(params);
           this._initActionStream();
           this._mutators = actions || lGet(params, actions);
+          this.initialize();
         }
 
         get actions() {
