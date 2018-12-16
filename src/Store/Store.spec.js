@@ -1,4 +1,5 @@
 import bottle from './../bottle';
+import util from 'util';
 
 describe('Store', () => {
   let Store;
@@ -57,7 +58,7 @@ describe('Store', () => {
       });
     });
 
-    describe('after initialize (async)', async () => {
+    describe.only('after initialize (async)', async () => {
       it('should have the right state', async () => {
         await store.initialize();
         expect(store.state).toEqual({ a: 1, b: 2 });
@@ -192,10 +193,7 @@ describe('Store', () => {
       });
       it('should have the state of the initializer', () => {
         store.initialize();
-        expect(store.state).toEqual({
-          a: 1,
-          b: 1,
-        });
+        expect(store.state).toEqual({ a: 1, b: 1 });
       });
     });
 
@@ -207,10 +205,7 @@ describe('Store', () => {
 
       it('should have the state of the initializer', async () => {
         await store.initialize();
-        expect(store.state).toEqual({
-          a: 2,
-          b: 2,
-        });
+        expect(store.state).toEqual({ a: 2, b: 2 });
       });
     });
   });
@@ -248,10 +243,7 @@ describe('Store', () => {
     describe('after initialize (immediately)', () => {
       it('should have same state', () => {
         store.initialize();
-        expect(store.state).toEqual({
-          a: 1,
-          b: 1,
-        });
+        expect(store.state).toEqual({ a: 1, b: 1 });
       });
 
       it('should still have status STORE_STATUS_INITIALIZED', () => {

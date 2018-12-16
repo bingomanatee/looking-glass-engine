@@ -79,6 +79,12 @@ export default (bottle) => {
         }
 
         _perform(name, change, params) {
+          if (this.isInitializeError) {
+            call(params.fail, new Error('called action after initialization error', params));
+            return;
+          }
+
+          if (!this.isInitialized) this.initialize();
           const tid = this._getTID();
 
           this.actionStream.next({

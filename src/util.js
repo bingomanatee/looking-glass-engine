@@ -36,6 +36,19 @@ export default (bottle) => {
     }
   });
 
+  bottle.factory('explodePromise', ({ NOT_SET, isPromise }) => (promise) => {
+    let done = NOT_SET;
+    let fail = NOT_SET;
+
+    if (isPromise(promise)) {
+      done = (...args) => [...args];
+      fail = (...args) => [...args];
+      promise.then(done).catch(fail);
+    } else promise = new Promise((d, f) => { done = d; fail = f; });
+
+    return Object.assign([promise, done, fail], { done, fail, promise });
+  });
+
   bottle.factory('update', () => function (delta) {
     return (actions, ...args) => (state) => {
       const change = delta(actions, ...args)(state);
