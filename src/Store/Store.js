@@ -208,20 +208,8 @@ export default (bottle) => {
             });
           });
         }
-        _debugMessage(source, message, params) {
-          if (this._debug) {
-            this._debugStream.next({
-              source,
-              message,
-              params,
-              store_state: this.state,
-              store_status: this.status,
-            });
-          }
-        }
 
-
-        change(stateChange, status = NOT_SET, onError = NOT_SET) {
+        _change(stateChange, status = NOT_SET, onError = NOT_SET) {
           let myResolve = NOT_SET;
           let myFail = NOT_SET;
           const promise = new Promise((resolve, fail) => {
@@ -283,13 +271,13 @@ export default (bottle) => {
 
           if (this._initialState) {
             if (this._initializer) {
-              this.change(this._initialState, STORE_STATUS_INITIALIZING);
-              this._initPromise = this.change(this._initializer, STORE_STATUS_INITIALIZED);
+              this._change(this._initialState, STORE_STATUS_INITIALIZING);
+              this._initPromise = this._change(this._initializer, STORE_STATUS_INITIALIZED);
             } else {
-              this._initPromise = this.change(this._initialState, STORE_STATUS_INITIALIZED);
+              this._initPromise = this._change(this._initialState, STORE_STATUS_INITIALIZED);
             }
           } else if (this._initializer) {
-            this._initPromise = this.change(this._initializer, STORE_STATUS_INITIALIZED);
+            this._initPromise = this._change(this._initializer, STORE_STATUS_INITIALIZED);
           }
           return this._initPromise;
         }
@@ -319,6 +307,18 @@ export default (bottle) => {
                 onError(error, this);
               },
             );
+          }
+        }
+
+        _debugMessage(source, message, params) {
+          if (this._debug) {
+            this._debugStream.next({
+              source,
+              message,
+              params,
+              store_state: this.state,
+              store_status: this.status,
+            });
           }
         }
       }
