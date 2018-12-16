@@ -14,8 +14,7 @@ export default (bottle) => {
       STORE_STATUS_INITIALIZATION_ERROR,
       STORE_STATUS_INITIALIZED,
       NOT_SET,
-      p, call,
-      isPromise,
+      p, call, explodePromise, isPromise,
     }) => {
       class Store {
         constructor(props = null) {
@@ -92,25 +91,30 @@ export default (bottle) => {
 
         _initDebugStream() {
           this._debugStream = new BehaviorSubject()
-            .pipe(distinctUntilChanged());
-          this._errorStream.subscribe((message) => {
+            .pipe(map(data => Object.assign({}, data, {
+              store_state: this.state, store_status: this.status,
+            })));
+          this._errorStream.subscribe((error) => {
             this._debugStream.next({
-              source: '(errorStream)',
-              message,
+              source: '----(errorStream)',
+              message: 'error',
+              params: error,
             });
           });
 
-          this._changeStream.subscribe((message) => {
+          this._changeStream.subscribe((params) => {
             this._debugStream.next({
-              source: '(changeStream)',
-              message,
+              source: '-----(changeStream)',
+              message: 'params',
+              params,
             });
           });
 
-          this._stateStream.subscribe((message) => {
+          this._stateStream.subscribe((state) => {
             this._debugStream.next({
-              source: '(stateStream)',
-              message,
+              source: '----(stateStream)',
+              message: 'state',
+              params: state,
             });
           });
         }
@@ -130,12 +134,10 @@ export default (bottle) => {
           } = params;
 
           this._debugMessage('change stream', 'is promise', params);
-          change
+          return change
             .then((newChange) => {
-              this._changeStream.next({
-                ...params,
-                change: newChange,
-              });
+              this._debugMessage('change stream', '============= resolved', { params, newChange });
+              this._change(this._extendParams(params, { change: newChange }));
             })
             .catch((error) => {
               call(fail, error);
@@ -147,17 +149,43 @@ export default (bottle) => {
         }
 
         _resolveChangeFunction(params) {
-          const { change } = params;
+          this._change(this._extendParams(params, { change: params.change(this.state) }));
+        }
 
-          this._debugMessage('change stream', 'is function', params);
-          try {
-            this._changeStream.next({
-              ...params,
-              change: change(this.state, this),
-            });
-          } catch (error) {
-            this._changeError(error, params);
+        _extendParams(params, extension) {
+          if (typeof params === 'function') {
+            return this._extendParams({ change: params }, extension);
           }
+          if (isPromise(params)) {
+            return this._extendParams({ change: params }, extension);
+          }
+
+          const { done: oDone, fail: oFail } = params;
+          const { done: eDone, fail: eFail } = extension;
+          let done = oDone;
+          let fail = oFail;
+
+          if (eDone) {
+            done = async (...args) => {
+              await call(oDone, ...args);
+              return eDone(...args);
+            };
+          }
+
+          if (eFail) {
+            fail = async (...args) => {
+              await call(oFail, ...args);
+              return eFail(...args);
+            };
+          }
+
+          return Object.assign({}, params, extension, { done, fail });
+        }
+
+        _delayedChange(params) {
+          // until status is updated changes are buffered
+          this._debugMessage('change stream', 'delaying execution until initializing is done', params);
+          this.onInit(params);
         }
 
         _changeError(error, params) {
@@ -176,66 +204,7 @@ export default (bottle) => {
 
         _initChangeStream() {
           this._changeStream = new BehaviorSubject(NOT_SET);
-          this._changeStream.subscribe((params = NOT_SET) => {
-            if (params === NOT_SET) return;
-            if (typeof params === 'function') {
-              params = { change: params };
-            }
-            this._debugMessage('change stream listener', '(initial)', params);
-            const {
-              change = NOT_SET,
-              done = NOT_SET,
-              fail = NOT_SET,
-              status = NOT_SET,
-            } = params;
-
-            if (this._noChangeBeforeInit && !status) {
-              switch (this.status) {
-                case STORE_STATUS_INITIALIZING:
-                  this._changeError(new Error('cannot process change before initialization'), params);
-                  return;
-                  break;
-
-                case STORE_STATUS_NEW:
-                  this._changeError(new Error('cannot process change before initialization'), params);
-                  return;
-                  break;
-
-                default:
-                  // continue;
-              }
-            }
-
-            if (this.isInitializeError) {
-              call(fail, this.initializationError);
-            } else if (!change) {
-              const error = new Error('no change specified');
-              this._changeError(error, params);
-            } else if (isPromise(change)) {
-              this._resolveChangePromise(params);
-            } else if (typeof change === 'function') {
-              this._resolveChangeFunction(params);
-            } else if (!this.isInitialized) {
-              if (status === NOT_SET) {
-                // until status is updated changes are buffered
-                this._debugMessage('change stream', 'delaying execution until initializing is done', params);
-                this.onInit(() => {
-                  this._debugMessage('change stream', 'delayed execution', params);
-                  this._changeStream.next(params);
-                });
-              } else {
-                this._debugMessage('change stream', 'doing change status', params);
-                this._setState(change);
-                this._setStatus(status);
-                call(done, this.state);
-              }
-            } else {
-              this._debugMessage('change stream', 'syncronous change', params);
-              this._setState(change);
-              if (status) this._setStatus(status);
-              call(done, this.state);
-            }
-          }, (error) => {
+          this._changeStream.subscribe(params => this.onChange(params), (error) => {
             this._errorStream.next({
               message: 'change stream error',
               error,
@@ -243,24 +212,73 @@ export default (bottle) => {
           });
         }
 
-        _change(stateChange, status = NOT_SET, onError = NOT_SET) {
-          let myResolve = NOT_SET;
-          let myFail = NOT_SET;
-          const promise = new Promise((resolve, fail) => {
-            myResolve = resolve;
-            myFail = fail;
-          });
-          const params = {
-            change: stateChange,
-            status,
-            done: myResolve,
-            fail: (error) => {
-              call(onError, error);
-              myFail(error);
-            },
-          };
+        onChange(params = NOT_SET) {
+          if (params === NOT_SET) {
+            return;
+          }
 
-          this._changeStream.next(params);
+          const {
+            change = NOT_SET,
+            done = NOT_SET,
+            status,
+          } = params;
+
+          if (this.isInitializeError) {
+            this._changeError(this.initializationError, params);
+            return;
+          }
+
+          if (!change) {
+            this._changeError(new Error('no change specified'), params);
+            return;
+          }
+
+          if (this._noChangeBeforeInit && !status) {
+            switch (this.status) {
+              case STORE_STATUS_INITIALIZING:
+                this._changeError(new Error('cannot process change before initialization'), params);
+                return;
+                break;
+
+              case STORE_STATUS_NEW:
+                this._changeError(new Error('cannot process change before initialization'), params);
+                return;
+                break;
+
+              default:
+              // continue;
+            }
+          }
+
+          if (isPromise(change)) {
+            this._resolveChangePromise(params);
+            return;
+          }
+
+          if (typeof change === 'function') {
+            this._resolveChangeFunction(params);
+            return;
+          }
+
+          if (!this.isInitialized) {
+            if (!status) {
+              this._delayedChange(params);
+              return;
+            }
+          }
+
+          if (status) {
+            this._setStatus(status);
+          }
+
+          this._setState(change);
+          call(done, this.state);
+        }
+
+        _change(params) {
+          this._debugMessage('_change', 'initial', params);
+          const [promise, done, fail] = explodePromise();
+          this._changeStream.next(this._extendParams(params, { done, fail }));
           return promise;
         }
 
@@ -268,8 +286,10 @@ export default (bottle) => {
           return this._state;
         }
 
-        _setState(value) {
-          this._stateStream.next(value);
+        _setState(value = NOT_SET) {
+          if (value !== NOT_SET) {
+            this._stateStream.next(value);
+          }
         }
 
         get status() {
@@ -277,7 +297,14 @@ export default (bottle) => {
         }
 
         _setStatus(status) {
-          this._status = status;
+          if ([
+            STORE_STATUS_NEW,
+            STORE_STATUS_INITIALIZING,
+            STORE_STATUS_INITIALIZED,
+            STORE_STATUS_INITIALIZATION_ERROR,
+          ].includes(status)) {
+            this._status = status;
+          }
         }
 
         subscribe(...args) {
@@ -301,47 +328,62 @@ export default (bottle) => {
         }
 
         initialize() {
+          this._debugMessage('initialize', '==========initializing', {});
           if (this._initPromise) return this._initPromise;
-
-          if (this._firstState) {
-            if (this._initializer) {
-              this._change(this._firstState, STORE_STATUS_INITIALIZING);
-              this._initPromise = this._change(this._initializer, STORE_STATUS_INITIALIZED);
-            } else {
-              this._initPromise = this._change(this._firstState, STORE_STATUS_INITIALIZED);
-            }
-          } else if (this._initializer) {
-            this._initPromise = this._change(this._initializer, STORE_STATUS_INITIALIZED);
+          this._setState(this._firstState);
+          this._setStatus(STORE_STATUS_INITIALIZING);
+          if (this._initializer) {
+            this._initPromise = this._change({
+              change: this._initializer, status: STORE_STATUS_INITIALIZED,
+            });
+          } else {
+            this._initPromise = this._change({
+              change: this._firstState, status: STORE_STATUS_INITIALIZED,
+            });
           }
           return this._initPromise;
         }
 
-        onInit(fn, onError) {
-          if (this.isInitializeError) {
-            call(onError, this.initializationError);
-          } else if (this.isInitialized) {
-            fn(this);
-          } else {
-            const sub = this._statusStream.subscribe(
-              (status) => {
-                switch (status) {
-                  case STORE_STATUS_INITIALIZED:
-                    sub.unsubscribe();
-                    fn(this);
-                    break;
+        onInit(params) {
+          const {
+            fail,
+          } = params;
 
-                  case STORE_STATUS_INITIALIZATION_ERROR:
-                    call(onError, this.initializationError, this);
-                    break;
-
-                  default:
-                }
-              },
-              (error) => {
-                onError(error, this);
-              },
-            );
+          if (this.isInitialized) {
+            return this._change(params);
           }
+
+          if (this.isInitializeError) {
+            call(fail, this.initializationError);
+            return Promise.reject(this.initializationError);
+          }
+
+          const [myDone, myFail, promise] = explodePromise();
+
+          const sub = this._statusStream.subscribe(
+            (status) => {
+              switch (status) {
+                case STORE_STATUS_INITIALIZED:
+                  sub.unsubscribe();
+                  this._change(this._extendParams(params, { done: myDone, fail: myFail }));
+                  break;
+
+                case STORE_STATUS_INITIALIZATION_ERROR:
+                  sub.unsubscribe();
+                  call(fail, this.initializationError, this);
+                  myFail(this.initializationError);
+                  break;
+
+                default:
+              }
+            },
+            (error) => {
+              call(fail, error, this);
+              myFail(error);
+            },
+          );
+
+          return promise;
         }
 
         _debugMessage(source, message, params) {
@@ -350,8 +392,6 @@ export default (bottle) => {
               source,
               message,
               params,
-              store_state: this.state,
-              store_status: this.status,
             });
           }
         }
