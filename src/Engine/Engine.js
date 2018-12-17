@@ -1,5 +1,5 @@
-import { combineLatest, BehaviorSubject, from } from 'rxjs';
-import { map, distinctUntilChanged, pairwise, filter } from 'rxjs/operators';
+import {combineLatest, BehaviorSubject, from} from 'rxjs';
+import {map, distinctUntilChanged, pairwise, filter} from 'rxjs/operators';
 import lGet from 'lodash.get';
 import lClone from 'lodash.clonedeep';
 
@@ -7,21 +7,20 @@ export default (bottle) => {
   bottle.factory(
     'Engine',
     ({
-      STORE_STATE_UNSET_VALUE,
-      STORE_STATUS_NEW,
-      STORE_STATUS_INITIALIZING,
-      STORE_STATUS_INITIALIZATION_ERROR,
-      STORE_STATUS_INITIALIZED,
+       STORE_STATE_UNSET_VALUE,
+       STORE_STATUS_NEW,
+       STORE_STATUS_INITIALIZING,
+       STORE_STATUS_INITIALIZATION_ERROR,
+       STORE_STATUS_INITIALIZED,
 
-      ACTION_START,
-      ACTION_COMPLETE,
-      ACTION_ERROR,
+       ACTION_START,
+       ACTION_COMPLETE,
+       ACTION_ERROR,
 
-      NOT_SET,
-      p, call,
-      isPromise,
-      Store,
-    }) => {
+       NOT_SET,
+       p, call, isPromise, explodePromise,
+       Store,
+     }) => {
       class Engine extends Store {
         constructor(params, actions) {
           super(params);
@@ -36,14 +35,11 @@ export default (bottle) => {
 
             Object.keys(this._mutators)
               .forEach((method) => {
-                actions[method] = (...params) => {
-                  const change = this._mutators[method](actions, ...params);
-                  // should usually be a function, or a promise
-                  if (isPromise(change) || (typeof change === 'function')) {
-                    return this._perform(method, change, params);
-                  }
-                  return Promise.resolve(NOT_SET);
-                };
+                actions[method] = (...params) => this.perform({
+                  method,
+                  actions,
+                  params,
+                });
               });
 
             this._actions = actions;
@@ -53,21 +49,49 @@ export default (bottle) => {
 
         _initActionStream() {
           this.actionStream = new BehaviorSubject();
-          this.actionStream.subscribe((action) => {
-            if (action.actionStatus === ACTION_START) {
-              this._change({
-                change: action.change,
-                done: () => {
-                  this.actionStream.next({ ...action, actionStatus: ACTION_COMPLETE });
-                },
-                error: (error) => {
-                  this._actionStream.next({
-                    ...action, error, actionStatus: ACTION_ERROR,
-                  });
-                },
-              });
-            }
+          this.actionStream.subscribe(params => this.onAction(params), (error) => {
+            this._errorStream.next({message: 'action error', error});
           });
+        }
+
+        onAction(params) {
+          if (!params) return;
+          this._debugMessage('onAction', '(init)', params);
+          const {
+            actionStatus = NOT_SET,
+            change,
+          } = params;
+
+          if (!change) {
+            if (actionStatus !== ACTION_ERROR) {
+              this.actionStream.next(Object.extend({}, params, {
+                actionStatus: ACTION_ERROR,
+                error: new Error(`cannot find method ${lGet(params, 'method', '???')}`),
+              }));
+              return;
+            }
+          }
+
+          if (actionStatus === ACTION_START) {
+            this._debugMessage('onAction', 'chaining action call ', params);
+            this._change(this._extendParams(params, {
+              done: () => {
+                this.actionStream.next(Object.assign({}, params, {
+                  actionStatus: ACTION_COMPLETE,
+                }));
+              },
+              fail: (error) => {
+                this.actionStream.next(Object.assign({}, params, {
+                  error, actionStatus: ACTION_ERROR,
+                }));
+              },
+              actionStatus: NOT_SET,
+            }));
+          } else if (actionStatus === ACTION_ERROR) {
+            call(lGet(params, 'fail'));
+          } else {
+            this._debugMessage('onAction', 'NOT chaining action call ', params);
+          }
         }
 
         _getTID() {
@@ -78,23 +102,33 @@ export default (bottle) => {
           return this._tid;
         }
 
-        _perform(name, change, params) {
-          if (this.isInitializeError) {
-            call(params.fail, new Error('called action after initialization error', params));
-            return;
-          }
+        perform(params) {
+          const [promise, done, fail] = explodePromise();
+          let {
+            // eslint-disable-next-line prefer-const
+            method, change, actions = this.actions, params: methodParams,
+          } = params;
+          const mutator = lGet(this._mutators, method, NOT_SET);
 
-          if (!this.isInitialized) this.initialize();
+          if (mutator) change = mutator(actions, ...methodParams);
+
           const tid = this._getTID();
 
-          this.actionStream.next({
-            change,
-            actionStatus: ACTION_START,
+          this._debugMessage('perform', 'mutator:', {
+            mutator,
             params,
-            name,
-            state: lClone(this.state),
+            change,
             tid,
           });
+
+          this.actionStream.next(this._extendParams(params, {
+            done,
+            fail,
+            tid,
+            change,
+            actionStatus: ACTION_START,
+          }));
+          return promise;
         }
       }
 

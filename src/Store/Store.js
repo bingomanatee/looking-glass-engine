@@ -149,6 +149,7 @@ export default (bottle) => {
         }
 
         _resolveChangeFunction(params) {
+          this._debugMessage('_resolveChangeFunction', 'chaining', params);
           this._change(this._extendParams(params, { change: params.change(this.state) }));
         }
 
@@ -168,14 +169,14 @@ export default (bottle) => {
           if (eDone) {
             done = async (...args) => {
               await call(oDone, ...args);
-              return eDone(...args);
+              return call(eDone, ...args);
             };
           }
 
           if (eFail) {
             fail = async (...args) => {
               await call(oFail, ...args);
-              return eFail(...args);
+              return call(eFail, ...args);
             };
           }
 

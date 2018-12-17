@@ -1,5 +1,4 @@
 import bottle from './../bottle';
-import util from 'util';
 
 describe('Store', () => {
   let Store;
@@ -209,7 +208,6 @@ describe('Store', () => {
       });
     });
   });
-
 
   describe('with no initializer and an initialValue', () => {
     beforeEach(() => {

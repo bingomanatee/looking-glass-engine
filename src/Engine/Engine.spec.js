@@ -18,8 +18,34 @@ describe('Engine', () => {
   });
 
   describe('allowing chaining of actions before init', () => {
+    let engine;
+    let debug;
+    let actions;
     describe('before initialize', () => {
-      it('stub', () => expect(1).toBe(1));
+      beforeEach(() => {
+        debug = [];
+        actions = [];
+        engine = new Engine({ state: { a: 1, b: 1 }, debug: true }, {
+          incA: () => store => Object.assign({}, store, { a: store.a + 1 }),
+          incB: () => Promise.resolve(store => Object.assign({}, store, { b: store.b + 1 })),
+        });
+        engine._debugStream.subscribe((value) => {
+          debug.push(value);
+        });
+
+        engine.actionStream.subscribe((value) => {
+          actions.push(value);
+        });
+      });
+      it('increments (sync)', () => {
+        engine.actions.incA();
+        expect(engine.state).toEqual({ a: 2, b: 1 });
+      });
+
+      it('increments(async)', async () => {
+        await engine.actions.incB();
+        expect(engine.state).toEqual({ a: 1, b: 2 });
+      });
     });
   });
 });
