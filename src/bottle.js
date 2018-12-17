@@ -3,6 +3,7 @@ import store from './Store';
 import engine from './Engine';
 import constants from './constants';
 import util from './util';
+import engineMerger from './EngineMerger';
 
 export default () => {
   const bottle = new Bottle();
@@ -10,5 +11,6 @@ export default () => {
   constants(bottle);
   util(bottle);
   engine(bottle);
+  engineMerger(bottle);
   return bottle;
 };
