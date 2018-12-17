@@ -1,5 +1,5 @@
-import {combineLatest, BehaviorSubject, from} from 'rxjs';
-import {map, distinctUntilChanged, pairwise, filter} from 'rxjs/operators';
+import { combineLatest, BehaviorSubject, from } from 'rxjs';
+import { map, distinctUntilChanged, pairwise, filter } from 'rxjs/operators';
 import lGet from 'lodash.get';
 import lClone from 'lodash.clonedeep';
 
@@ -7,20 +7,20 @@ export default (bottle) => {
   bottle.factory(
     'Engine',
     ({
-       STORE_STATE_UNSET_VALUE,
-       STORE_STATUS_NEW,
-       STORE_STATUS_INITIALIZING,
-       STORE_STATUS_INITIALIZATION_ERROR,
-       STORE_STATUS_INITIALIZED,
+      STORE_STATE_UNSET_VALUE,
+      STORE_STATUS_NEW,
+      STORE_STATUS_INITIALIZING,
+      STORE_STATUS_INITIALIZATION_ERROR,
+      STORE_STATUS_INITIALIZED,
 
-       ACTION_START,
-       ACTION_COMPLETE,
-       ACTION_ERROR,
+      ACTION_START,
+      ACTION_COMPLETE,
+      ACTION_ERROR,
 
-       NOT_SET,
-       p, call, isPromise, explodePromise,
-       Store,
-     }) => {
+      NOT_SET,
+      p, call, isPromise, explodePromise,
+      Store,
+    }) => {
       class Engine extends Store {
         constructor(params, actions) {
           super(params);
@@ -50,7 +50,7 @@ export default (bottle) => {
         _initActionStream() {
           this.actionStream = new BehaviorSubject();
           this.actionStream.subscribe(params => this.onAction(params), (error) => {
-            this._errorStream.next({message: 'action error', error});
+            this._errorStream.next({ message: 'action error', error });
           });
         }
 

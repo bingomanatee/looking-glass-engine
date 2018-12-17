@@ -1,5 +1,4 @@
 import bottle from './../bottle';
-import util from 'util';
 
 describe('Store', () => {
   let Store;
@@ -58,7 +57,7 @@ describe('Store', () => {
       });
     });
 
-    describe.only('after initialize (async)', async () => {
+    describe('after initialize (async)', async () => {
       it('should have the right state', async () => {
         await store.initialize();
         expect(store.state).toEqual({ a: 1, b: 2 });
