@@ -44,12 +44,18 @@ describe('Engine', () => {
       });
       it('increments (sync)', () => {
         engine.actions.incA();
+        console.log('actions:', actions);
+        console.log('debug:', debug);
         expect(engine.state).toEqual({ a: 2, b: 1 });
       });
 
       it('increments(async)', async () => {
-        await engine.actions.incB();
-        expect(engine.state).toEqual({ a: 1, b: 2 });
+        try {
+          await engine.actions.incB();
+          expect(engine.state).toEqual({a: 1, b: 2});
+        } catch (err) {
+          console.log('error:', err);
+        }
       });
 
       it('can call inner actions', async () => {

@@ -233,6 +233,24 @@
     deepmerge "^1.5.2"
     optimize-css-assets-webpack-plugin "^3.2.0"
 
+"@wonderlandlabs/inspector@^1.0.4":
+  version "1.0.4"
+  resolved "https://registry.yarnpkg.com/@wonderlandlabs/inspector/-/inspector-1.0.4.tgz#6fdea4907be78a039c36d5486f2a9cfa0bd997d2"
+  integrity sha512-EuF+ZtfM4fcuGZoke8fulzBi1eCZBzxN258fnHkxnfOEuQQlfgdsF3UrfYYM7ectDjhcyWCymaUc/2moUYI8JQ==
+  dependencies:
+    bottlejs "^1.7.1"
+    is "^3.2.1"
+
+"@wonderlandlabs/propper@^2.0.3":
+  version "2.0.3"
+  resolved "https://registry.yarnpkg.com/@wonderlandlabs/propper/-/propper-2.0.3.tgz#61bbd0bbf401bb5cc404322fbdd4291a95a0fc5d"
+  integrity sha512-H2Iqs5VMEgwJ0M+1gQg1JastF+OF2DzR7a9Ck6laenMEJ1kVJwTUNVu01Y++UWiA1K59OGbwRYAYXEcAw7Tnvg==
+  dependencies:
+    "@wonderlandlabs/inspector" "^1.0.4"
+    is "^3.2.1"
+    lodash.compact "^3.0.1"
+    lodash.get "^4.4.2"
+
 abab@^1.0.3:
   version "1.0.4"
   resolved "https://registry.yarnpkg.com/abab/-/abab-1.0.4.tgz#5faad9c2c07f60dd76770f71cf025b62a63cfd4e"
@@ -5049,6 +5067,11 @@ is-zip@^1.0.0:
   resolved "https://registry.yarnpkg.com/is-zip/-/is-zip-1.0.0.tgz#47b0a8ff4d38a76431ccfd99a8e15a4c86ba2325"
   integrity sha1-R7Co/004p2QxzP2ZqOFaTIa6IyU=
 
+is@^3.2.1:
+  version "3.3.0"
+  resolved "https://registry.yarnpkg.com/is/-/is-3.3.0.tgz#61cff6dd3c4193db94a3d62582072b44e5645d79"
+  integrity sha512-nW24QBoPcFGGHJGUwnfpI7Yc5CdqWNdsyHQszVE/z2pKHXzh7FZ5GWhJqSyaQ9wMkQnsTx+kAI8bHlCX4tKdbg==
+
 isarray@0.0.1:
   version "0.0.1"
   resolved "https://registry.yarnpkg.com/isarray/-/isarray-0.0.1.tgz#8a18acfca9a8f4177e09abfc6038939b05d1eedf"
@@ -5716,6 +5739,11 @@ lodash.clonedeep@^4.5.0:
   version "4.5.0"
   resolved "https://registry.yarnpkg.com/lodash.clonedeep/-/lodash.clonedeep-4.5.0.tgz#e23f3f9c4f8fbdde872529c1071857a086e5ccef"
   integrity sha1-4j8/nE+Pvd6HJSnBBxhXoIblzO8=
+
+lodash.compact@^3.0.1:
+  version "3.0.1"
+  resolved "https://registry.yarnpkg.com/lodash.compact/-/lodash.compact-3.0.1.tgz#540ce3837745975807471e16b4a2ba21e7256ca5"
+  integrity sha1-VAzjg3dFl1gHRx4WtKK6IeclbKU=
 
 lodash.debounce@^4.0.8:
   version "4.0.8"

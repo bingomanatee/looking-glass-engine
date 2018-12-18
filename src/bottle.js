@@ -4,6 +4,7 @@ import engine from './Engine';
 import constants from './constants';
 import util from './util';
 import engineMerger from './EngineMerger';
+import change from './Change';
 
 export default () => {
   const bottle = new Bottle();
@@ -12,5 +13,6 @@ export default () => {
   util(bottle);
   engine(bottle);
   engineMerger(bottle);
+  change(bottle);
   return bottle;
 };

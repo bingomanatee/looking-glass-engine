@@ -32,7 +32,7 @@ export default (bottle) => {
 
   bottle.factory('call', () => (fn, ...args) => {
     if (fn && typeof fn === 'function') {
-      fn(args);
+      return fn(args);
     }
   });
 
@@ -56,10 +56,17 @@ export default (bottle) => {
     };
   });
 
+  bottle.constant('NOOP', a => a);
+
   bottle.factory('isPromise', () => (subject) => {
     if (!subject) return false;
     if (subject instanceof Promise) return true;
     return Promise.resolve(subject) === subject;
+  });
+
+  bottle.factory('functionCombine', ({ call }) => (f1, f2) => async (...args) => {
+    await call(f1, ...args);
+    return call(f2, ...args);
   });
 
   bottle.factory('mergeIntoState', () => change => state => Object.assign({}, state, change));

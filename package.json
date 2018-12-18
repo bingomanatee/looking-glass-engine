@@ -16,6 +16,7 @@
     "raf": "^3.4.1"
   },
   "dependencies": {
+    "@wonderlandlabs/propper": "^2.0.3",
     "bottlejs": "^1.7.1",
     "lodash.clonedeep": "^4.5.0",
     "lodash.get": "^4.4.2",

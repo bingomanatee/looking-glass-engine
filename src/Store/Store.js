@@ -14,14 +14,15 @@ export default (bottle) => {
       STORE_STATUS_INITIALIZATION_ERROR,
       STORE_STATUS_INITIALIZED,
       NOT_SET,
+      Change,
       p, call, explodePromise, isPromise,
     }) => {
       class Store {
         constructor(props = null) {
           this._parseProps(props);
 
-          this._initStateStream();
           this._initChangeStream();
+          this._initStateStream();
           this._initErrorStream();
 
           this._initStream();
@@ -137,7 +138,7 @@ export default (bottle) => {
           return change
             .then((newChange) => {
               this._debugMessage('change stream', '============= resolved', { params, newChange });
-              this._change(this._extendParams(params, { change: newChange }));
+              this._change({ ...params, change: newChange });
             })
             .catch((error) => {
               call(fail, error);
@@ -150,9 +151,17 @@ export default (bottle) => {
 
         _resolveChangeFunction(params) {
           this._debugMessage('_resolveChangeFunction', 'chaining', params);
-          this._change(this._extendParams(params, { change: params.change(this.state) }));
+          this._change({ ...params, change: params.change(this.state) });
         }
 
+        /**
+         * depracated; built into Change.
+         *
+         * @param params
+         * @param extension
+         * @returns {*}
+         * @private
+         */
         _extendParams(params, extension) {
           if (typeof params === 'function') {
             return this._extendParams({ change: params }, extension);
@@ -277,9 +286,9 @@ export default (bottle) => {
         }
 
         _change(params) {
-          this._debugMessage('_change', 'initial', params);
-          const [promise, done, fail] = explodePromise();
-          this._changeStream.next(this._extendParams(params, { done, fail }));
+          const changeRecord = (params instanceof Change) ? params : new Change(params);
+          const [change, promise] = changeRecord.asPromise();
+          this._changeStream.next(change);
           return promise;
         }
 
@@ -359,28 +368,31 @@ export default (bottle) => {
             return Promise.reject(this.initializationError);
           }
 
-          const [myDone, myFail, promise] = explodePromise();
+          let changeRecord;
+          if (!(params instanceof Change)) {
+            changeRecord = new Change(params);
+          } else changeRecord = params;
+
+          const [change, promise] = changeRecord.asPromise();
 
           const sub = this._statusStream.subscribe(
             (status) => {
               switch (status) {
                 case STORE_STATUS_INITIALIZED:
                   sub.unsubscribe();
-                  this._change(this._extendParams(params, { done: myDone, fail: myFail }));
+                  this._change(change);
                   break;
 
                 case STORE_STATUS_INITIALIZATION_ERROR:
                   sub.unsubscribe();
-                  call(fail, this.initializationError, this);
-                  myFail(this.initializationError);
+                  call(change.fail, this.initializationError, this);
                   break;
 
                 default:
               }
             },
             (error) => {
-              call(fail, error, this);
-              myFail(error);
+              call(change.fail, error, this);
             },
           );
 
