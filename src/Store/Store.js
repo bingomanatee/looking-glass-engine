@@ -277,11 +277,11 @@ export default (bottle) => {
             }
           }
 
+          this._setState(change);
+
           if (status) {
             this._setStatus(status);
           }
-
-          this._setState(change);
           call(done, this.state);
         }
 
@@ -354,6 +354,14 @@ export default (bottle) => {
           return this._initPromise;
         }
 
+        /**
+         * this method delays an action until the store has been initialized
+         * (or is in init error state).
+         *
+         * @param params {change} or legit arguments to the new change constructor.
+         *
+         * @returns {Promise<never>}
+         */
         onInit(params) {
           const {
             fail,
