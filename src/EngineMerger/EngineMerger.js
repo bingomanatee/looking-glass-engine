@@ -26,8 +26,7 @@ export default (bottle) => {
         return actions;
       }, {});
     } else if (typeof engines === 'object') {
-      const baseActions = {};
-      const actions = { baseActions };
+      const actions = { baseActions: {} };
 
       Object.keys(engines).forEach((engineName) => {
         const engine = engines[engineName];
@@ -38,7 +37,7 @@ export default (bottle) => {
           });
           actions[engineName][method] = action;
           actions[method] = action;
-          actions.baseActions[method] = engine.actions[method];
+          actions.baseActions[engineName] = engine.actions;
         });
       });
       return actions;
