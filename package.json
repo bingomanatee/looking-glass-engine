@@ -20,6 +20,7 @@
     "bottlejs": "^1.7.1",
     "lodash.clonedeep": "^4.5.0",
     "lodash.get": "^4.4.2",
+    "lodash.groupby": "^4.6.0",
     "rxjs": "^6.3.3"
   }
 }

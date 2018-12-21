@@ -56,6 +56,12 @@ export default (bottle) => {
     };
   });
 
+  bottle.factory('obj', () => (key, value) => {
+    let out = {};
+    out[key] = value;
+    return out;
+  });
+
   bottle.constant('NOOP', a => a);
 
   bottle.factory('isPromise', () => (subject) => {

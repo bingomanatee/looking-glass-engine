@@ -44,8 +44,6 @@ describe('Engine', () => {
       });
       it('increments (sync)', () => {
         engine.actions.incA();
-        console.log('actions:', actions);
-        console.log('debug:', debug);
         expect(engine.state).toEqual({ a: 2, b: 1 });
       });
 

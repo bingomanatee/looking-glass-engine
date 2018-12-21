@@ -2,6 +2,7 @@ import { combineLatest, BehaviorSubject, from } from 'rxjs';
 import { map, distinctUntilChanged, pairwise, filter } from 'rxjs/operators';
 import lGet from 'lodash.get';
 import lClone from 'lodash.clonedeep';
+import lGroupBy from 'lodash.groupby';
 
 export default (bottle) => {
   bottle.factory('defaultActionReducer', () => function (engines) {
@@ -45,7 +46,10 @@ export default (bottle) => {
     throw new Error('bad engines for defaultActionReducer');
   });
 
-  bottle.factory('defaultStateReducer', () => (states) => {
+  bottle.factory('defaultStateReducer', ({
+    STORE_STATE_UNSET_VALUE,
+  }) => (states) => {
+    if (states === STORE_STATE_UNSET_VALUE) return states;
     if (Array.isArray(states)) {
       return states.reduce((newState, state) => ({ ...newState, ...state }), {});
     } else if (typeof states === 'object') {
@@ -58,17 +62,18 @@ export default (bottle) => {
       });
       return newState;
     }
+    console.log('bad state:', states);
     throw new Error('bad state passed to defaultStateReducer');
   });
 
   bottle.factory(
     'EngineMerger',
     ({
-      STORE_STATE_UNSET_VALUE,
       STORE_STATUS_NEW,
       STORE_STATUS_INITIALIZING,
       STORE_STATUS_INITIALIZATION_ERROR,
       STORE_STATUS_INITIALIZED,
+      STORE_STATE_UNSET_VALUE,
 
       defaultActionReducer,
       defaultStateReducer,
@@ -77,36 +82,53 @@ export default (bottle) => {
       ACTION_ERROR,
 
       NOT_SET,
-      p, call, isPromise, explodePromise,
+      p, call, isPromise, explodePromise, obj,
       Store,
     }) => {
+      const STATUS_MAP = new Map();
+      STATUS_MAP.set(STORE_STATUS_NEW, 'new');
+      STATUS_MAP.set(STORE_STATUS_INITIALIZATION_ERROR, 'error');
+      STATUS_MAP.set(STORE_STATUS_INITIALIZED, 'initialized');
+      STATUS_MAP.set(STORE_STATUS_INITIALIZING, 'initializing');
+      STATUS_MAP.set(NOT_SET, 'other');
+
       class EngineMerger extends Store {
         constructor(params) {
           super(params);
+          this._initActionStream();
+
           this.initialize();
         }
 
         _parseProps(params) {
-          this.actions = lGet(params, 'actionReducer', defaultActionReducer)(lGet(params, 'engines', []));
+          this.engines = lGet(params, 'engines', []);
           this._stateReducer = lGet(params, 'stateReducer', defaultStateReducer);
+          this._actionsReducer = lGet(params, 'actionReducer', defaultActionReducer);
+          this._initialState = lGet(params, 'state', STORE_STATE_UNSET_VALUE);
+          this._listenToEngineStreams();
         }
 
         get actions() {
           if (!this._actions) {
-            const actions = {};
-
-            Object.keys(this.mutators)
-              .forEach((method) => {
-                actions[method] = (...params) => this.perform({
-                  method,
-                  actions,
-                  params,
-                });
-              });
-
-            this._actions = actions;
+            this._actions = this._actionsReducer(this.engines);
           }
           return this._actions;
+        }
+
+        _listenToEngineStreams() {
+          this.enginesArray.forEach(e => e.subscribe(() => {
+            this._updateState();
+          }, (err) => {
+            console.log('error on ', e, err);
+          }, () => {
+            console.log('engine shut down');
+          }));
+        }
+
+        _updateState() {
+          if (this.status === STORE_STATUS_INITIALIZED) {
+            this._stateStream.next(this._stateReducer(this.states));
+          }
         }
 
         _initActionStream() {
@@ -114,6 +136,59 @@ export default (bottle) => {
           this.actionStream.subscribe(params => this.onAction(params), (error) => {
             this._errorStream.next({ message: 'action error', error });
           });
+        }
+
+        initialize() {
+          this._debugMessage('initialize', '========== initializing', {});
+          if (this._initPromise) return this._initPromise;
+          this._setState(this._firstState);
+          this._setStatus(STORE_STATUS_INITIALIZING);
+          if (this._initializer) {
+            this._initPromise = this._change({
+              change: this._waitForRelatedEnginesInitialize(), status: STORE_STATUS_INITIALIZED,
+            });
+          } else {
+            this._initPromise = this._change({
+              change: this._firstState, status: STORE_STATUS_INITIALIZED,
+            })
+              .then(() => this._waitForRelatedEnginesInitialize());
+          }
+          return this._initPromise;
+        }
+
+        async _waitForRelatedEnginesInitialize() {
+          await Promise.all(this.enginesArray.map(engine => engine.initialize()));
+          this._change({ status: STORE_STATUS_INITIALIZED, change: this._stateReducer(this.states) });
+        }
+
+        get engineKeys() {
+          return Object.keys(this.engines).sort();
+        }
+
+        get states() {
+          if (Array.isArray(this.engines)) return this.engines.map(e => e.state);
+          if (typeof this.engines === 'object') {
+            // eslint-disable-next-line arrow-body-style
+            return this.engineKeys.reduce((memo, key) => {
+              return ({ ...memo, ...obj(key, this.engines[key].state) });
+            }, {});
+          }
+          console.log('this engines is not right:', this.engines);
+          return STORE_STATE_UNSET_VALUE;
+        }
+
+        get enginesArray() {
+          if (Array.isArray(this.engines)) {
+            return this.engines.slice(0);
+          }
+          if (typeof this.engines === 'object') {
+            return this.engineKeys.reduce((memo, key) => [...memo, this.engines[key]], []);
+          }
+          return [];
+        }
+
+        get statesArray() {
+          return this.enginesArray.map(e => e.state);
         }
 
         onAction(params) {

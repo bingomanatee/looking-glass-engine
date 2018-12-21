@@ -318,7 +318,7 @@ export default (bottle) => {
         }
 
         subscribe(...args) {
-          this._stream.subscribe(...args);
+          this._stateStream.subscribe(...args);
         }
 
         get isInitializing() {

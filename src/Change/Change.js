@@ -13,12 +13,8 @@ export default (bottle) => {
   }) => {
     class Change {
       constructor(params = {}) {
-        try {
-          Object.assign(this, params);
-        } catch (err) {
-          console.log(params, '--------- error: ', err);
-          throw err;
-        }
+        Object.assign(this, params);
+
         if (!this.id) {
           ++Change.nextID;
           this.id = Change.nextID;
