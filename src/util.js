@@ -34,6 +34,7 @@ export default (bottle) => {
     if (fn && typeof fn === 'function') {
       return fn(args);
     }
+    return null;
   });
 
   bottle.factory('explodePromise', ({ NOT_SET, isPromise }) => (promise) => {
@@ -57,7 +58,7 @@ export default (bottle) => {
   });
 
   bottle.factory('obj', () => (key, value) => {
-    let out = {};
+    const out = {};
     out[key] = value;
     return out;
   });

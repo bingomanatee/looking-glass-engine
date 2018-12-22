@@ -470,3 +470,65 @@ export default class UserDisplay extends React.PureComponent {
 
 The local store for userName and password dumps continually to state, due to the componentDidMount binding of 
 store to state. 
+
+# Linking without context
+
+If you want to directly inject state without context, you can publish your store object and bring it into 
+state wherever you wish to include it. This is especially useful for Angular or Preact (without context partches).
+
+```jsx harmony
+
+import {baseStore} from '../App.';
+
+export default class UserDisplay extends React.PureComponent {
+  static contextType = StoreContext;
+  
+  constructor(props) {
+      super(props);
+      this.store = new Engine({userName: '', password: ''}, {
+        setUserName: (actions, userName) => (state) => ({...state, userName}),
+        setPassword: (actions, password) => (state) => ({...state, password})
+      })
+      
+      this.state = {...this.store.state, loggedInUserName: baseStore.state.loggedInUserName, loggedIn: baseStore.state.loggedIn}}
+  }
+  
+  componentDidMount() {
+    this.store.subscribe((state) => this.setState(state));
+    baseStore.subscribe(({loggedInUserName, loggedIn}) => {this.setState({loggedInUserName, loggedIn});})
+  }
+  
+  componentWillUnmount() {
+    this.store.stop();
+  }
+  
+  render() {
+    return <div>
+    {this.context.state.user.loggedIn && <span>{this.state.loggedInUserName}</span>}
+    {!this.context.state.user.loggedIn && (
+      <div>
+      
+      <div>
+      <label>Username:</label>
+      <input type="text" value={this.state.userName}
+       onChange={(event) => this.store.actions.setUserName(event.target.value)} />
+      </div>
+      
+      <div>
+      <label>Password:</label>
+      <input type="password" value={this.state.password}
+       onChange={(event) => this.store.actions.setPassword(event.target.value)} />
+      </div>
+      
+      <div>
+      <Button onClick={baseStore.actions.logIn(this.store.state.userName, this.store.state.password)}}>
+      Log In!
+      </Button>
+      </div>
+    )}
+    </div>
+  }
+}
+
+```
+
