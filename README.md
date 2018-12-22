@@ -1,270 +1,472 @@
-This repository is the repo for the store engine behind freactal. This module does 
-NOT include code for binding the stores to React (or anything browser related).
-That code is contained in 
-[freactal-connect](https://github.com/bingomanatee/freactal-connect)
+The Looking Glass engine is an evolution from Freactal that takes models from Redux (that work) and models from Freactal
+and saga (that work) and removes the elements of Freactal that do not (shadowing, no control over store combination)
+and the elements of Redux that do not (massive verbosity) and similar problems with Saga.
 
-## Store Engines
+The fulcrum of Looking Glass is a Store system that takes change in any of many forms - delta functions , promises, 
+promises that return delta functions, absolute values -- and boils them down to a value that State needs to be set to. 
 
-Store Engines have the following signature:
+This boildown is synchronous _until a promise is encountered_, at which case the change is deferred until it resolves. 
 
-* **state**: a property of the current store's state. Ideally an object. 
-* **actions**: a collection of mutator functions that take in the engine and arguments and return a mutated state.
-               Actions can also return a promise, as they are wrapped in a promise structure. 
-* **subscribe**: a method to subscribe (RxJS) to the changes of the state data. 
+This means you can insert an ajax request, get the data, then return a function to blend that data into the current state.
+You can even _not_ do so at the last minute if the current state condition has changed. 
 
-note, effects as an alias to actions are also provided by the StoreEngine for backwards compatibility. 
+# Stores
 
-*Everything else about the store engine is optional.* 
-
-Want to point the store to a Component state? go to town. 
-Want to point the store to a REST interface? why not. 
-Want to store state in localStorage/sessionStorage? Sounds good. 
-Want to use Generators to communicate changes? If you can make it work. 
-
-Stores can be bound in the React Tree and inherit down the DOM, overriding parent styles -- this is the default model of Freactal. However they can also be kept separate from the DOM tree and broadcast across the tree as their states change. 
-
-States can be combined using the StoreReducer class; this is the mechanic that allows context inheritance to work. 
-But you can also create discrete stores that manage specific spheres and blend them into a shared state, a la Redux reducers. 
-
-## The StoreEngine class
-
-The StoreEngine class has the following signature: 
-
-````javascript
-const engine = new StoreEngine({
-    state,       //? {object},
-    initializer, // ? {function}
-    actions,     // ? {object}
-    effects,     // ? {object}
-    },
-    actions      //?  {Object: hash of functions);
-);
-
-````
-
-note there are multiple ways to provide actions.
-
-* as the second argument (easiest)
-* as a property ('actions') of the first argument.
-* as a property ('effects') of the first argument for backwards compatibility. 
-
-### The Initialization Cycle 
-
-initialization can be accomplished synchronously, asynchronously or *both*. Engines without an initialValue will have a state value of `Symbol(BASE_STATE_UNINITIALIZED_VALUE)` until `store.initialize() {promise}` is called. At that point the engine's status will move from `Symbol(BASE_STATE_STATUS_UNINITIALIZED)` to `Symbol(BASE_STATE_STATUS_INITIALIZED)`. `.initialize()` is called automatically before every action, and is idempotent. 
-
-If a property with NEITHER initialValue or initializer is passed, IT is considered to be the initial value. So by definition either the initialValue or the initializer is present in all scenarios. 
-
-| state | initializer | state after constructor | state after `await initialize()` |
-|------|------|-----|-----|
-| -- | function | BASE_STATE_UNINITIALIZED_VALUE | result of initializer(engine) |
-| value | -- | state | initialValue |
-| value | function | state | result of initializer(engine) |
-
-### Actions
-
-Actions are functions that take in the engine's actions and optional arguments 
-and return a function that takes in the states value and returns a modified state;
-or a promise that results in that function. 
-
-Actions can call other actions from the engine, other promise actions, etc. They can be asynchronous. 
-
-So, all these actions are equivalent:
-
-````javascript
-
-{
-  doubleA: () => (state) => {
-      return Object.assign({}, state, {a: 2 * state.a});
-    },
-  doubleAWithPromise: () => new Promise((resolve) => {
-    resolve((state) => Object.assign({}, state, {a: 2 * state.a}))
-  });
-}
-
-````
-
-### A note under the hood
-
-The `StoreEngine` inherits from `Store` class.  The `Store` class manages data storage and change streaming;
-the `StoreEngine` adds functionality for Action management. If you want to write your own StoreEngine,
-you might find extending Store with your own Action system easier than a wholly unique rebuild. 
-
-## The Inheritance Pattern: Freactal Reducer
-
-StateEngines can inherit data and actions from each other through the StoreReducer class. This class
-takes an array of two (or more) StoreEngines and behaves like a StoreEngine that is the union of these two
-classes. 
-
-*Example:*
+A store is a mutable record of data that manages change. It has RxJS streams "Under the hood" so you can `.subscribe()`
+to change streams in the same manner as an RxJS stream. **TLDR**: if you pass a `.subscribe(listener)` to a store you get a
+message each time the store changes. You also get a subscriber back, so you can stop listening.
 
 ```jsx harmony
 
-let engine1 = new StoreEngine({a: 1, b: 2, c: 3}, {
-  setA: update((store, a) => ({a})),
-  setB: update((store, b) => ({b})),
-  addAtoB: (actions) => (state) => Object.assign({}, state, {b: (state.a + state.b)})
-})
-
-let engine2 = new StoreEngine({a: 10, c: 30}, {
-  setA: update((store, a) => ({a})),
-  setC: update((store, c) => ({c})),
-  addAtoC: (actions) => (state) => Object.assign({}, state, {c: (state.a + state.c)}),
-  doBoth: async (actions) => {
-    await actions.addAtoB();
-    await actions.addAtoC();
-    return (state) => state;
-  }
-})
-
-let combined = new StoreEngineReducer([engine1, engine2]);
-
-/**
- * combined's actions: {setA, setB, seteC, addAtoB, addAtoC}
- * combined's initial state: {a: 10, b: 2, c: 30}
-*/
-```
-
-okay but... addAtoB -- which A? and addAtoC: which A, and which C?
-
-When there are key overlaps both in state and actions, the *second* engine 
-(or rightmost if there are more than two) takes precedence.
-This means that if a rightmost engine's method/state value shadows ones from an engine before it,
-the rightmost engine wins out. 
-
-From the point of view The golden rule of Freactal is: 
-
-*actions are bound to the state of the engine they are originally defined in.*
-
-this means combined's `addAtoC` will both *get* the values of A and C from engine1 and will *write* to 
-the state of engine1. combined's state is always re-computed after each action and re-blended from
-all the states of its' source engines. An `StoreEngineReducer` is a 'virtual class' that combines
-both the actions and states of its sources but the flow of information is one-way - it 
-continually recombines state from its components out to its consumers. 
-
-## Access to other actions
-
-The actions of the rightmost engine has access to the actions to its left. the example here,
-`doBoth()`, shows how a combined action can allow one engine to access another engines' actions. 
-*however* it doesn't let the rightmost engine to have access to the leftmost actions' *state*. 
-
-This means if you want to pull information from a child engine into a parent engines' computations,
-you have to get it from *outside* the action (and pass it in as a parameter). This means for instance,
-there is *no way to inject a shadowed state value of a leftmost engine into an action in a parent's
-action. 
-
-## Customizing reduction
-
-How to avoid shadow effects when reducing engines? As with Redux, you can write custom reduction
-to combine actions and/or states. This is purely optional - if you can work with shadow/inheritance
-you don't need this utility. But for those that need it, custom store blending can let you isolate or
-select state and properties from each engine and combine them however you want. 
-
-```jsx harmony
-
-engineAlpha = new StoreEngine(
-{
-  a: 1,
-  b: 2,
-  c: 3,
-},
-{
-  setA: update((actions, a) => () => ({ a })),
-  setB: update((actions, b) => () => ({ b })),
-  addAtoB: () => (state) => {
-    const { a, b } = state;
-    return Object.assign({}, state, { b: a + b });
+const teaStore = new Store({teas: [
+  {
+    id: 11151215,
+    name: 'The Whizzer',
+    price: 12.34
   },
-},
-);
-
-engineAlpha.name = 'alpha';
-
-engineBeta = new StoreEngine({
-a: 10,
-c: 20,
-d: 30,
-}, {
-setA: update((actions, a) => () => ({ a })),
-addAllToD: () => ({ a, c, d }) => {
-  const sum = a + c + d;
-  return Object.assign({}, {
-    a,
-    c,
-    d: sum,
-  });
-},
-});
-
-engineBeta.name = 'beta';
-
-```
-
-Instead of blending the state and actions we want to name-space each one based on the engine name 
-(an ad-hoc property we slap on the engine post-construction). 
-
-Because state reduction is done in the context of RxJS it operates on the states themselves, so we use
-the index of the current item as a hint:
-
-```jsx harmony`
-blend = new StoreEngineReducer([engineAlpha, engineBeta], {
-stateReducer: (memo, state, i) => {
-  const out = { ...memo };
-  const keys = Object.keys(state);
-  switch (i) {
-    case 0:
-      keys.forEach((name) => {
-        out[`${name}-alpha`] = state[name];
-      });
-      break;
-
-    case 1:
-      keys.forEach((name) => {
-        out[`${name}-beta`] = state[name];
-      });
-      break;
-
-    default:
+  {
+    id: 2152265,
+    name: 'Thunderdome 1000',
+    price: 55
   }
+]});
+
+let sub = teaStore.subscribe((store) => {
+  console.log('you have ', store.teas.length, ' teas for sale: ', ...store.teas.map(t => t.name));
+  if (store.teas.length > 3) sub.unsubscribe();
+});
+
+teaStore.change((state) => {
+  let out = {...state};
+  out.teas = [...state.teas, {id: 11525, name: 'Ragin Cajun', price: 15.50}];
   return out;
-},
+})
+
+teaStore.change((state) => {
+  let out = {...state};
+  out.teas = [...state.teas, {id: 11525, name: 'Ragnarok', price: 35.50}];
+  return out;
+})
+
+teaStore.change((state) => {
+  let out = {...state};
+  out.teas = [...state.teas, {id: 11525, name: 'Afternoon Terminator', price: 2.25}];
+  return out;
+})
+
 ```
-...actions are a lot easier as the actionReducer has access to the entire engine. 
+
+will render:
 
 ```jsx harmony
-// ...
-actionReducer: ({ engines }) => engines.reduce((actions, engine) => {
-  const out = { ...actions };
-  const keys = Object.keys(engine.actions);
 
-  keys.forEach((name) => {
-    out[`${name}_${engine.name}`] = engine.actions[name];
-  });
+"you have 2 teas for sale, The Whizzer, Thuinderdome 1000" // will trigger on initial value
+"you have 2 teas for sale, The Whizzer, Thuinderdome 1000, Ragin Cajun" // on first addition
+"you have 2 teas for sale, The Whizzer, Thuinderdome 1000, Ragin Cajun, Ragnarok" // on second addition; then unsub hit
+// Afternoon thunder changes, but does not trigger the subscriber.
 
-  return out;
-}, {}),
+```
+
+## Initializing a Store
+
+A store can be built up in one of many ways: 
+
+### An initial value
+
+```jsx harmony
+
+const teaStore = new Store({teas: [
+  {
+    id: 11151215,
+    name: 'The Whizzer'
+  },
+  {
+    id: 2152265,
+    name: 'Thunderdome 1000'
+  }
+]});
+
+Store.initialize();
+
+```
+
+### An initializing function
+
+```jsx harmony
+
+const teaStore = new Store(() => axios.get(API_URL + '/teas').then(result => result.data));
+
+```
+
+### Both
+
+```jsx harmony
+
+const teaStore = new Store({
+   store: {teas: []}, 
+   initializer: () => axios.get(API_URL + '/teas').then(result => result.data)
+});
+   
+```
+
+The catch is, if you do not set the initial value, the first value of the store will be the symbol 
+`STORE_STATE_UNSET_VALUE`. 
+
+All change is deferred until the Store is initialized.
+Stores also have a `.status` property that reflects whether the store has been initialized; it goes through 
+the following phases: 
+
+* STORE_STATUS_NEW,
+* STORE_STATUS_INITIALIZING,
+* STORE_STATUS_INITIALIZED,
+
+(and hopefully never) 
+
+* STORE_STATUS_INITIALIZATION_ERROR
+
+All change that is requested before the store is initialized is deferred. 
+
+## Changing State
+
+The store's state is updated with a method `.change([variant])`. Change returns a promise that when done,
+indicates the change has been resolved. _however_: change will attempt to resolve the change synchronously
+if it is possible. 
+
+Even the initial state and the initializer are special case change requests. They pass through because they have a
+status field that indicates they are status-changes. 
+
+# Engines
+
+If you want to manage change flow externally a store is fine. If you want to create an API into a Store you want an Engine.
+Engines extend Stores. There are two things about them that are different:
+
+1. They will automatically call their initialize() method.
+2. They have actions, which are named "change triggerers". 
+
+```jsx harmony
+
+let teaStore = new Engine({state: {
+  teas: [],
+  receipts: [],
+  customerVisits: 0
+}}, {
+  reset: () => ({teas: [], customerVisits: 0, receipts: []}),
+  incCustomerVisits: () => {
+    return (state) => {
+      let customerVisits = state.customerVisits + 1;
+      return {...state, customerVisits}
+    }
+  },
+  sellTea: (actions, type, qty = 1) => (state) => {
+    let tea = state.teas.filter(t => t.type === type);
+    if (!tea) return state;
+    let saleValue = tea.price * qty;
+    let receipt = {tea: type, qty, saleValue};
+    let receipts = [...state.receipts, receipt];
+    return Object.assign({}, state, {receipts});
+  },
+  addReceipt: (actions, receipt) => {
+    return (state) => {
+    let receipts = [...state.receipts, receipt];
+    return Object.assign({}, state, {receipts});
+    }
+  },
+  postTeaSale: (actions, type, qty = 1) => (state) => {
+    return axios.put(API_URL + '/sales', {type, qty})
+    .then(r => r.data)
+    .then(({receipt}) => {
+      return actions.addReceipt(receipt)
+    });
+  })
 });
 
 ```
 
-Now the state is expressed out to namespaced properties. 
+Lets walk down the actions one by one:
+
+* **reset** is a function that returns an absolute object. It doesn't care what the state was, it rams a value
+  into state directly. It's synchronous.
+* **incCustomerVisits** returns a delta - a function that changes the shop's customer visits count in the state by 
+  incrementing it by one. Its synchronous. 
+* **sellTea** is a more complex, but still synchronous action, with parameters. It takes those parameters and 
+  saves them into receipts, using the state tea list as a basis for cost. 
+* **postTeaSale** is a promise based action that returns a promise that when unravelled, calls another action
+  -- the synchronous **addReceipt** -- that adds the result of a remote call to the receipts list. 
+  note that since actions all return the last state (ultimately), it's legitimate to return an action result
+  from an action.
+  
+So an action is always a function. Its first argument is the actions collection itself; any other parameters follow.
+
+An action can return:
+
+* A value (that replaces state)
+* A function (that takes state and returns a new state)
+* A function (that calls actions and has no return: a "void action")
+* A function that returns a promise whose result is a function (that takes state then returns a new state)
+* A function that returns a promise whose result is an object (that replaces state)
+
+... so basically the only criteria are the *beginning of the trip*(a function whose first params is args, and 
+that passes along user input) 
+
+...and the end of the trip (a delta function that modifies state) or (a value to replace state).
+
+# EngineMerger
+
+As with Redux you may want to express state into a series of Engines. one for the user, one for ths
+shop, one for navigation, etc. You can do so with no interaction, but if you want your engines to use each 
+other's actions, you'll have to merge states with EngineMerger. Engine merger takes an object or array
+of states and combines them.
 
 ```jsx harmony
 
-console.log(blend.state);
+let userEngine = new Engine({
+userID: 0,
+loggedIn: false,
+loginResult: null,
+userName: null,
+shoppingCart: []
+}, {
+  logOut: () => ({
+                 userID: 0,
+                 loggedIn: false,
+                 loginResult: null,
+                 loggedInUserName: null,
+                 shoppingCart: []
+                 }),
+  logIn: (actions, userName, password)=> {
+      // note: some obfuscation of password better in a real app
+      return axios.post('/login', {userName, password})
+      .then((data) => data.json())
+      .then((user) => {
+        return (state) => ({loggedInUserName: user.name, loggedIn: true});
+      })
+      .catch((err) => (state) => {
+        return {...state, loginResult: err, loggedIn: false};
+      });
+    },
+    
+    addToCart: (actions, item) => (store) => {
+        let shoppingCart = [...store.shoppingCart, item];
+        return {...store, shoppingCart};
+    }
+})
 
-/**
-* 
-{
-    'a-alpha': 1,
-    'a-beta': 10,
-    'b-alpha': 2,
-    'c-alpha': 3,
-    'c-beta': 20,
-    'd-beta': 30,
-}
-*/
+let teaEngine = new Engine({state: {
+  teas: [],
+  receipts: [],
+  customerVisits: 0
+}}, {
+  reset: () => ({teas: [], customerVisits: 0, receipts: []}),
+  incCustomerVisits: () => {
+    return (state) => {
+      let customerVisits = state.customerVisits + 1;
+      return {...state, customerVisits}
+    }
+  },
+  addToCart: (actions, name, qty) => {
+    actions.user.addToCart({name, qty});
+    // returns nothing.
+  },
+  sellTea: (actions, type, qty = 1, userName) => (state) => {
+    let tea = state.teas.filter(t => t.type === type);
+    if (!tea) return state;
+    let saleValue = tea.price * qty;
+    let receipt = {tea: type, qty, saleValue};
+    let receipts = [...state.receipts, receipt];
+    return Object.assign({}, state, {receipts});
+  },
+  addReceipt: (actions, receipt, userName) => {
+    return (state) => {
+      let newReceipt = {...receipt, userName};
+      let receipts = [...state.receipts, newReceipt];
+      return Object.assign({}, state, {receipts});
+    }
+  },
+  postTeaSale: (actions, userName, type, qty = 1) => (state) => {
+    return axios.put(API_URL + '/sales', {type, qty})
+    .then(r => r.data)
+    .then(({receipt}) => {
+      return actions.addReceipt(receipt, userName)
+    });
+  });
+});
+
+let baseStore = new EngineMergeer({engines: {user: userEngine, teas: teaEngine}});
 
 ```
 
-as is shown in the tests, this rebranding of state is *not* present in the action code; they are still
-attached to the localized values of state. 
+Even though the actions now have acesss to each other (see addToCart) in a named collection based on the hash
+you passed into baseStore, they don't have access to each others' state. Every action's delta function takes
+in and returns *the state from its original engine* so even the merged actions in baseStore cant directly cross-
+contaminate each other. You need to do so through arguments to the action.
+
+***Word of warning***: because actions return the modified state (as a promise), *never return another engine's action
+results from one of your own actions*. Best to return a no-op delta (or nothing). 
+
+## Injecting state into React (or anywhere else) 
+
+Although we could write custom HOC to do this (and might), the best way to manage state is to use React's 
+native concepts of Context to manage state yourself. 
+
+To do so follow the following pattern: 
+
+1. Create an Engine. (or perhaps many merged engines) This doesn't have to occur inside a React component - you can
+   bring it in from outside.
+   
+2. Assign its' store value to a components' state.
+
+3. Inject that state into a react context in the render cycle. 
+
+4. Subscribe to state change in componentDidMount and send that back to state. 
+
+Here is how you would set up a shared state in root. 
+
+```jsx harmony
+
+// see above for store defs
+export const baseStore = new EngineMergeer({engines: {user: userEngine, teas: teaEngine}});
+
+export const StoreContext = React.createContext(baseStore.state);
+
+export default class App extends React.PureComponent {
+  static contextType = StoreContext;
+  
+  constructor(props) {
+    super(props);
+    // storing both the store and its resulting state in component state
+    this.state = {baseState: baseStore.state, baseStore };
+  }
+  
+  componentDidMount() {
+    this.baseStore.subscribe(baseState => this.setState({baseState}));
+  }
+  
+  render() {
+    <StoreContext.Provider value={(
+      {
+      actions: baseStore.actions,
+       state: this.state.baseState
+      }
+    )}>
+    {this.props.children}
+    </StoreContext.Provider>
+  }
+}
+
+```
+
+In any child you can then pull state out of Context: 
+
+```jsx harmony
+
+import {StoreContext} from '../App.';
+
+export default class UserDisplay extends React.PureComponent {
+  static contextType = StoreContext;
+  
+  constructor(props) {
+      super(props);
+      this.state={userName: '', password: ''}
+  }
+  
+  setUserName(userName) {
+    this.setState({userName});
+  }
+  
+  setPassword(password) {
+    this.setState({password});
+  }
+  
+  render() {
+    return <div>
+    {this.context.state.user.loggedIn && <span>{this.context.state.user.loggedInUserName}</span>}
+    {!this.context.state.user.loggedIn && (
+      <div>
+      
+      <div>
+      <label>Username:</label>
+      <input type="text" value={this.state.userName} 
+      onChange={(event) => this.setUserName(event.target.value)} />
+      </div>
+      
+      <div>
+      <label>Password:</label>
+      <input type="password" value={this.state.password}
+       onChange={(event) => this.setPassword(event.target.value)} />
+      </div>
+      
+      <div>
+      <Button onClick={
+            this.context.actions.logIn(this.state.userName, this.state.password)
+          }}>Log In!</Button>
+          </div>
+      </div>
+    )}
+    </div>
+  }
+}
+
+```
+
+As this shows, you can use local state where practical, and get access both to Engine state and engine actions
+through context. 
+
+Note you can also inject a locally existent state to perform localized management:
+
+```jsx harmony
+
+import {StoreContext} from '../App.';
+
+export default class UserDisplay extends React.PureComponent {
+  static contextType = StoreContext;
+  
+  constructor(props) {
+      super(props);
+      this.store = new Engine({userName: '', password: ''}, {
+        setUserName: (actions, userName) => (state) => ({...state, userName}),
+        setPassword: (actions, password) => (state) => ({...state, password})
+      })
+      
+      this.state = {...this.store.state}}
+  }
+  
+  componentDidMount() {
+    this.store.subscribe((state) => this.setState(state));
+  }
+  
+  componentWillUnmount() {
+    this.store.stop();
+  }
+  
+  render() {
+    return <div>
+    {this.context.state.user.loggedIn && <span>{this.context.state.user.loggedInUserName}</span>}
+    {!this.context.state.user.loggedIn && (
+      <div>
+      
+      <div>
+      <label>Username:</label>
+      <input type="text" value={this.state.userName}
+       onChange={(event) => this.store.actions.setUserName(event.target.value)} />
+      </div>
+      
+      <div>
+      <label>Password:</label>
+      <input type="password" value={this.state.password}
+       onChange={(event) => this.store.actions.setPassword(event.target.value)} />
+      </div>
+      
+      <div>
+      <Button onClick={this.context.actions.logIn(this.store.state.userName, this.store.state.password)}}>
+      Log In!
+      </Button>
+      </div>
+    )}
+    </div>
+  }
+}
+
+```
+
+The local store for userName and password dumps continually to state, due to the componentDidMount binding of 
+store to state. 

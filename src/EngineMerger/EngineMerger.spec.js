@@ -1,6 +1,6 @@
 import bottle from './../bottle';
 
-describe('Store', () => {
+describe('EngineMerger', () => {
   let Engine;
   let EngineMerger;
   let STORE_STATUS_NEW;
@@ -39,10 +39,13 @@ describe('Store', () => {
 
   describe('array of engines - sync initializers', () => {
     beforeEach(() => {
-      engines = new EngineMerger({ engines: [engine1, engine2] });
+      engines = new EngineMerger({ engines: [engine1, engine2], debug: true });
+      engines._debugStream.subscribe((...args) => {
+        // console.log('debugMessage:', args);
+      });
     });
 
-    it('should only satisfy initialize after all the engines are intialized.', async () => {
+    it('should only satisfy initialize after all the engines are initialized.', async () => {
       await engines.initialize();
       expect(engine1.state).toEqual({ a: 1, b: 2 });
       expect(engine2.state).toEqual({ a: 3, c: 4 });

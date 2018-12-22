@@ -74,7 +74,7 @@ export default (bottle) => {
 
           if (actionStatus === ACTION_START) {
             this._debugMessage('onAction', 'chaining action call ', changeRecord);
-            this._change(changeRecord.extend({
+            this.change(changeRecord.extend({
               done: () => {
                 this.actionStream.next(changeRecord.extend({
                   actionStatus: ACTION_COMPLETE,

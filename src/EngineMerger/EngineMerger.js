@@ -100,11 +100,15 @@ export default (bottle) => {
         }
 
         _parseProps(params) {
+          this._idFromProps(params);
+
           this.engines = lGet(params, 'engines', []);
           this._stateReducer = lGet(params, 'stateReducer', defaultStateReducer);
           this._actionsReducer = lGet(params, 'actionReducer', defaultActionReducer);
-          this._initialState = lGet(params, 'state', STORE_STATE_UNSET_VALUE);
+          this._firstState = lGet(params, 'state', STORE_STATE_UNSET_VALUE);
+          this._maxInitWait = lGet(params, 'maxInitWait', 10 * 1000);
           this._listenToEngineStreams();
+          this._debug = lGet(params, 'debug', params);
         }
 
         get actions() {
@@ -140,14 +144,14 @@ export default (bottle) => {
         initialize() {
           this._debugMessage('initialize', '========== initializing', {});
           if (this._initPromise) return this._initPromise;
-          this._setState(this._firstState);
+          this._setState(this.c);
           this._setStatus(STORE_STATUS_INITIALIZING);
           if (this._initializer) {
-            this._initPromise = this._change({
+            this._initPromise = this.change({
               change: this._waitForRelatedEnginesInitialize(), status: STORE_STATUS_INITIALIZED,
             });
           } else {
-            this._initPromise = this._change({
+            this._initPromise = this.change({
               change: this._firstState, status: STORE_STATUS_INITIALIZED,
             })
               .then(() => this._waitForRelatedEnginesInitialize());
@@ -156,8 +160,44 @@ export default (bottle) => {
         }
 
         async _waitForRelatedEnginesInitialize() {
-          await Promise.all(this.enginesArray.map(engine => engine.initialize()));
-          this._change({ status: STORE_STATUS_INITIALIZED, change: this._stateReducer(this.states) });
+          let failed = false;
+          const tid = this._getTID();
+          this._debugMessage('_waitForRelatedEnginesInitialize', 'waiting for engines', {
+            tid,
+            engines: this.engines,
+          });
+          const killSwitch = setTimeout(() => {
+            failed = true;
+            this.change(Promise.reject(new Error('initialization took too long')));
+          }, this._maxInitWait);
+          await Promise.all(this.enginesArray.map((engine) => {
+            this._debugMessage('_waitForRelatedEnginesInitialize', 'awaiting engine timeout:', {
+              tid,
+              engine: `engine ${engine.id}`,
+            });
+            return new Promise((resolve, reject) => {
+              setTimeout(() => {
+                this._debugMessage('_waitForRelatedEnginesInitialize', 'engine failed to initialize', {
+                  tid,
+                  engine,
+                });
+                failed = true;
+                reject(new Error('engine failed to initialize'));
+              }, this._maxInitWait);
+              this._debugMessage('_waitForRelatedEnginesInitialize', 'all engines initialized', { tid });
+              engine.initialize()
+                .then(() => (failed ? reject(new Error('too late')) : resolve()))
+                .catch((err) => {
+                  this._debugMessage(
+                    '_waitForRelatedEnginesInitialize', 'engine initialization failure: ',
+                    { err, engine: engine.id, tid },
+                  );
+                  reject(err);
+                });
+            });
+          }));
+          clearTimeout(killSwitch);
+          this.change({ status: STORE_STATUS_INITIALIZED, change: this._stateReducer(this.states) });
         }
 
         get engineKeys() {
@@ -210,7 +250,7 @@ export default (bottle) => {
 
           if (actionStatus === ACTION_START) {
             this._debugMessage('onAction', 'chaining action call ', params);
-            this._change(this._extendParams(params, {
+            this.change(this._extendParams(params, {
               done: () => {
                 this.actionStream.next(Object.assign({}, params, {
                   actionStatus: ACTION_COMPLETE,

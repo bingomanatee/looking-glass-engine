@@ -13,18 +13,19 @@ export default (bottle) => {
       STORE_STATUS_INITIALIZING,
       STORE_STATUS_INITIALIZATION_ERROR,
       STORE_STATUS_INITIALIZED,
+      STORE_STATUS_STOPPED,
       NOT_SET,
       Change,
-      p, call, explodePromise, isPromise,
+      p, call, isPromise,
     }) => {
       class Store {
         constructor(props = null) {
+          this._idFromProps(props);
           this._parseProps(props);
 
           this._initChangeStream();
           this._initStateStream();
           this._initErrorStream();
-
           this._initStream();
 
 
@@ -33,6 +34,31 @@ export default (bottle) => {
           }
 
           this._setStatus(STORE_STATUS_NEW);
+        }
+
+        stop() {
+          this._setStatus(STORE_STATUS_STOPPED);
+          this._changeStream.complete();
+          this._stateStream.complete();
+          this._stream.complete();
+          this._errorStream.complete();
+          if (this._debugStream) this._debugStream.complete();
+        }
+
+        _idFromProps(props) {
+          if (!Store._nextID) Store._nextID = 0;
+          if (props) {
+            const id = lGet(props, 'id');
+            if ((id) && Number.isInteger(id) && (id >= Store._nextID)) {
+              this.id = id;
+              Store.nextID = id + 1;
+              return;
+            } else if (id && (typeof id === 'string')) {
+              this.id = id;
+            }
+          }
+          Store._nextID += 1;
+          this.id = Store._nextID;
         }
 
         /**
@@ -47,6 +73,7 @@ export default (bottle) => {
          */
 
         _parseProps(props) {
+          this._idFromProps(props);
           this._firstState = STORE_STATE_UNSET_VALUE;
           if (!props) return;
           if (typeof props === 'function') {
@@ -55,7 +82,7 @@ export default (bottle) => {
           let debug = false;
           let initializer = null;
           let firstState = STORE_STATE_UNSET_VALUE;
-          let noChangeBeforeInit = false;
+          let noChangeBeforeInit = true;
 
           if (typeof props === 'object') {
             if ('state' in props || 'initializer' in props) {
@@ -92,9 +119,34 @@ export default (bottle) => {
 
         _initDebugStream() {
           this._debugStream = new BehaviorSubject()
-            .pipe(map(data => Object.assign({}, data, {
-              store_state: this.state, store_status: this.status,
-            })));
+            .pipe(map((data) => {
+              const params = data.params;
+              let change = null;
+              if (params instanceof Change) {
+                switch (params.type) {
+                  case 'value':
+                    if (typeof params.change === 'symbol') {
+                      change = params.change.toString();
+                    } else {
+                      try {
+                        change = JSON.stringify(params.change);
+                      } catch (err) {
+                        change = params.change;
+                      }
+                    }
+                    break;
+
+                  default:
+                    change = `change -- ${params.type}`;
+                }
+                return Object.assign({}, data, {
+                  store_state: this.state, store_status: this.status, change,
+                });
+              }
+              return Object.assign({}, data, {
+                store_state: this.state, store_status: this.status, params,
+              });
+            }));
           this._errorStream.subscribe((error) => {
             this._debugStream.next({
               source: '----(errorStream)',
@@ -138,7 +190,7 @@ export default (bottle) => {
           return change
             .then((newChange) => {
               this._debugMessage('change stream', '============= resolved', { params, newChange });
-              this._change({ ...params, change: newChange });
+              this.change({ ...params, change: newChange });
             })
             .catch((error) => {
               call(fail, error);
@@ -151,7 +203,7 @@ export default (bottle) => {
 
         _resolveChangeFunction(params) {
           this._debugMessage('_resolveChangeFunction', 'chaining', params);
-          this._change({ ...params, change: params.change(this.state) });
+          this.change({ ...params, change: params.change(this.state) });
         }
 
         /**
@@ -227,9 +279,14 @@ export default (bottle) => {
             return;
           }
 
+          if (typeof params !== 'object') {
+            this.onChange({ change: params });
+            return;
+          }
+
           const {
             change = NOT_SET,
-            done = NOT_SET,
+            done,
             status,
           } = params;
 
@@ -238,7 +295,7 @@ export default (bottle) => {
             return;
           }
 
-          if (!change) {
+          if (!params) {
             this._changeError(new Error('no change specified'), params);
             return;
           }
@@ -246,12 +303,12 @@ export default (bottle) => {
           if (this._noChangeBeforeInit && !status) {
             switch (this.status) {
               case STORE_STATUS_INITIALIZING:
-                this._changeError(new Error('cannot process change before initialization'), params);
+                this._debugMessage('onChange', 'change before init -- suppressing', params);
                 return;
                 break;
 
               case STORE_STATUS_NEW:
-                this._changeError(new Error('cannot process change before initialization'), params);
+                this._debugMessage('onChange', 'change while new -- suppressing', params);
                 return;
                 break;
 
@@ -285,8 +342,13 @@ export default (bottle) => {
           call(done, this.state);
         }
 
-        _change(params) {
-          const changeRecord = (params instanceof Change) ? params : new Change(params);
+        change(params = NOT_SET) {
+          if (params === NOT_SET) return Promise.resolve(NOT_SET);
+          let init = params;
+          if (typeof params === 'object' && (!params.change)) {
+            init = { change: params };
+          }
+          const changeRecord = (params instanceof Change) ? params : new Change(init);
           const [change, promise] = changeRecord.asPromise();
           this._changeStream.next(change);
           return promise;
@@ -318,7 +380,7 @@ export default (bottle) => {
         }
 
         subscribe(...args) {
-          this._stateStream.subscribe(...args);
+          return this._stateStream.subscribe(...args);
         }
 
         get isInitializing() {
@@ -343,11 +405,11 @@ export default (bottle) => {
           this._setState(this._firstState);
           this._setStatus(STORE_STATUS_INITIALIZING);
           if (this._initializer) {
-            this._initPromise = this._change({
+            this._initPromise = this.change({
               change: this._initializer, status: STORE_STATUS_INITIALIZED,
             });
           } else {
-            this._initPromise = this._change({
+            this._initPromise = this.change({
               change: this._firstState, status: STORE_STATUS_INITIALIZED,
             });
           }
@@ -368,7 +430,7 @@ export default (bottle) => {
           } = params;
 
           if (this.isInitialized) {
-            return this._change(params);
+            return this.change(params);
           }
 
           if (this.isInitializeError) {
@@ -379,7 +441,9 @@ export default (bottle) => {
           let changeRecord;
           if (!(params instanceof Change)) {
             changeRecord = new Change(params);
-          } else changeRecord = params;
+          } else {
+            changeRecord = params;
+          }
 
           const [change, promise] = changeRecord.asPromise();
 
@@ -388,7 +452,7 @@ export default (bottle) => {
               switch (status) {
                 case STORE_STATUS_INITIALIZED:
                   sub.unsubscribe();
-                  this._change(change);
+                  this.change(change);
                   break;
 
                 case STORE_STATUS_INITIALIZATION_ERROR:
