@@ -1,3 +1,6 @@
+import { from, race } from 'rxjs';
+import { delay } from 'rxjs/operators';
+
 export default (bottle) => {
   /**
    * decomposes a promise into result and error;
@@ -77,4 +80,11 @@ export default (bottle) => {
   });
 
   bottle.factory('mergeIntoState', () => change => state => Object.assign({}, state, change));
+
+  bottle.factory('timeLimitObservable', () => (observable, delayTime = 1000, errorMessage) => {
+    const killSwitch = from([false, new Error(errorMessage || `took over ${delayTime / 1000} secs`)])
+      .pipe(delay(delayTime));
+
+    return race(observable, killSwitch);
+  });
 };

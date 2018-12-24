@@ -1,70 +1,11 @@
-import { combineLatest, BehaviorSubject, from } from 'rxjs';
+/* eslint-disable no-undef,prefer-promise-reject-errors */
+import { combineLatest, BehaviorSubject, Observable, from, fork } from 'rxjs';
 import { map, distinctUntilChanged, pairwise, filter } from 'rxjs/operators';
 import lGet from 'lodash.get';
 import lClone from 'lodash.clonedeep';
 import lGroupBy from 'lodash.groupby';
 
 export default (bottle) => {
-  bottle.factory('defaultActionReducer', () => function (engines) {
-    if (Array.isArray(engines)) {
-      return engines.reduce((actionsMemo, engine) => {
-        // with an array, actions will shadow other actions of the
-        // same name preferring right most engines. However all original
-        // actions will be available in the baseActions array.
-        let baseActions = actionsMemo.baseActions;
-        if (baseActions) {
-          baseActions = [...baseActions, engine.actions];
-        } else {
-          baseActions = [engine.actions];
-        }
-        const actions = { ...actionsMemo, baseActions };
-        Object.keys(engine.mutators).forEach((method) => {
-          actions[method] = (...params) => engine.perform({
-            actions, method, params,
-          });
-        });
-        return actions;
-      }, {});
-    } else if (typeof engines === 'object') {
-      const actions = { baseActions: {} };
-
-      Object.keys(engines).forEach((engineName) => {
-        const engine = engines[engineName];
-        actions[engineName] = {};
-        Object.keys(engine.mutators).forEach((method) => {
-          const action = (...params) => engine.perform({
-            actions, method, params,
-          });
-          actions[engineName][method] = action;
-          actions[method] = action;
-          actions.baseActions[engineName] = engine.actions;
-        });
-      });
-      return actions;
-    }
-    throw new Error('bad engines for defaultActionReducer');
-  });
-
-  bottle.factory('defaultStateReducer', ({
-    STORE_STATE_UNSET_VALUE,
-  }) => (states) => {
-    if (states === STORE_STATE_UNSET_VALUE) return states;
-    if (Array.isArray(states)) {
-      return states.reduce((newState, state) => ({ ...newState, ...state }), {});
-    } else if (typeof states === 'object') {
-      const newState = {};
-      Object.keys(states).forEach((engineName) => {
-        Object.keys(states[engineName]).forEach((fieldName) => {
-          newState[fieldName] = states[engineName][fieldName];
-        });
-        Object.assign(newState, states);
-      });
-      return newState;
-    }
-    console.log('bad state:', states);
-    throw new Error('bad state passed to defaultStateReducer');
-  });
-
   bottle.factory(
     'EngineMerger',
     ({
@@ -81,7 +22,7 @@ export default (bottle) => {
       ACTION_ERROR,
 
       NOT_SET,
-      p, call, isPromise, explodePromise, obj,
+      p, call, isPromise, explodePromise, obj, timeLimitObservable,
       Store,
     }) => {
       const STATUS_MAP = new Map();
@@ -144,60 +85,87 @@ export default (bottle) => {
         initialize() {
           this._debugMessage('initialize', '========== initializing', {});
           if (this._initPromise) return this._initPromise;
-          this._setState(this.c);
-          this._setStatus(STORE_STATUS_INITIALIZING);
-          if (this._initializer) {
-            this._initPromise = this.change({
-              change: this._waitForRelatedEnginesInitialize(), status: STORE_STATUS_INITIALIZED,
-            });
-          } else {
-            this._initPromise = this.change({
-              change: this._firstState, status: STORE_STATUS_INITIALIZED,
-            })
-              .then(() => this._waitForRelatedEnginesInitialize());
-          }
+
+          this.change({ change: this._firstState || STORE_STATE_UNSET_VALUE, status: STORE_STATUS_INITIALIZING });
+
+          this._initPromise = this.change({
+            status: STORE_STATUS_INITIALIZED,
+            change: this._waitEngineInit(),
+          });
+
           return this._initPromise;
         }
 
-        async _waitForRelatedEnginesInitialize() {
-          let failed = false;
-          const tid = this._getTID();
-          this._debugMessage('_waitForRelatedEnginesInitialize', 'waiting for engines', {
-            tid,
-            engines: this.engines,
+        async _waitEngineInit() {
+          let responded = false;
+          this._debugMessage('_waitEngineInit', 'initializing', this.engines);
+          const obsList = this.enginesArray.map((engine) => {
+            if (engine.isInitialized) {
+              return null;
+            }
+            this._debugMessage('_waitEngineInit', 'watching engine', engine.id);
+            const stateWatcher = new BehaviorSubject(engine.status);
+            engine.subscribe(() => {
+              stateWatcher.next(engine.status);
+            }, (error) => {
+              stateWatcher.error(error);
+            }, () => {
+            });
+
+            return stateWatcher;
+          }).filter(o => o !== null);
+
+          if (obsList.length < 1) {
+            return this._stateReducer(this.states);
+          }
+
+          return new Promise((done, fail) => {
+            combineLatest(obsList).subscribe((result) => {
+              if (responded) return;
+              let finished = true;
+              result.forEach((value) => {
+                if (responded) return;
+                switch (value) {
+                  case STORE_STATUS_INITIALIZED:
+                    // do nothing;
+                    break;
+
+                  case STORE_STATUS_INITIALIZING:
+                    finished = false;
+                    break;
+
+                  case STORE_STATUS_INITIALIZATION_ERROR:
+                    finished = false;
+                    responded = true;
+                    fail();
+                    break;
+
+                  default:
+                    finished = false;
+                    responded = true;
+                    fail();
+                    // some error
+                }
+              });
+              if (finished) {
+                responded = true;
+                done(this._stateReducer(this.states));
+              }
+            }, (error) => {
+              if (responded) return;
+              responded = true;
+              fail({
+                status: STORE_STATUS_INITIALIZATION_ERROR,
+                change: this.state,
+                error,
+              });
+            }, () => {
+              if (responded) return;
+              responded = true;
+              this._debugMessage('_waitEngineInit', 'result complete: ', result);
+              done(this._stateReducer(this.states));
+            });
           });
-          const killSwitch = setTimeout(() => {
-            failed = true;
-            this.change(Promise.reject(new Error('initialization took too long')));
-          }, this._maxInitWait);
-          await Promise.all(this.enginesArray.map((engine) => {
-            this._debugMessage('_waitForRelatedEnginesInitialize', 'awaiting engine timeout:', {
-              tid,
-              engine: `engine ${engine.id}`,
-            });
-            return new Promise((resolve, reject) => {
-              setTimeout(() => {
-                this._debugMessage('_waitForRelatedEnginesInitialize', 'engine failed to initialize', {
-                  tid,
-                  engine,
-                });
-                failed = true;
-                reject(new Error('engine failed to initialize'));
-              }, this._maxInitWait);
-              this._debugMessage('_waitForRelatedEnginesInitialize', 'all engines initialized', { tid });
-              engine.initialize()
-                .then(() => (failed ? reject(new Error('too late')) : resolve()))
-                .catch((err) => {
-                  this._debugMessage(
-                    '_waitForRelatedEnginesInitialize', 'engine initialization failure: ',
-                    { err, engine: engine.id, tid },
-                  );
-                  reject(err);
-                });
-            });
-          }));
-          clearTimeout(killSwitch);
-          this.change({ status: STORE_STATUS_INITIALIZED, change: this._stateReducer(this.states) });
         }
 
         get engineKeys() {

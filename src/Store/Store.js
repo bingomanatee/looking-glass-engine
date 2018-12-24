@@ -1,4 +1,4 @@
-/* eslint-disable no-unreachable */
+/* eslint-disable no-unreachable,no-empty */
 import { combineLatest, BehaviorSubject, from } from 'rxjs';
 import { map, distinctUntilChanged, pairwise, filter } from 'rxjs/operators';
 import lGet from 'lodash.get';
@@ -49,12 +49,14 @@ export default (bottle) => {
           if (!Store._nextID) Store._nextID = 0;
           if (props) {
             const id = lGet(props, 'id');
+            if ((id) && (typeof id === 'string')) {
+              this.id = id;
+              return;
+            }
             if ((id) && Number.isInteger(id) && (id >= Store._nextID)) {
               this.id = id;
-              Store.nextID = id + 1;
+              Store._nextID = id + 1;
               return;
-            } else if (id && (typeof id === 'string')) {
-              this.id = id;
             }
           }
           Store._nextID += 1;
@@ -120,7 +122,7 @@ export default (bottle) => {
         _initDebugStream() {
           this._debugStream = new BehaviorSubject()
             .pipe(map((data) => {
-              const params = data.params;
+              let params = data.params;
               let change = null;
               if (params instanceof Change) {
                 switch (params.type) {
@@ -143,11 +145,17 @@ export default (bottle) => {
                   store_state: this.state, store_status: this.status, change,
                 });
               }
+              // console.log('params not change:> ', params);
+              if (typeof params === 'object') {
+                try {
+                  params = JSON.stringify(params);
+                } catch (err) {}
+              }
               return Object.assign({}, data, {
                 store_state: this.state, store_status: this.status, params,
               });
             }));
-          this._errorStream.subscribe((error) => {
+          /*          this._errorStream.subscribe((error) => {
             this._debugStream.next({
               source: '----(errorStream)',
               message: 'error',
@@ -169,7 +177,7 @@ export default (bottle) => {
               message: 'state',
               params: state,
             });
-          });
+          }); */
         }
 
         _initStream() {
@@ -187,12 +195,14 @@ export default (bottle) => {
           } = params;
 
           this._debugMessage('change stream', 'is promise', params);
-          return change
+          change
             .then((newChange) => {
+              const ext = params.extend({ change: newChange });
               this._debugMessage('change stream', '============= resolved', { params, newChange });
-              this.change({ ...params, change: newChange });
+              this.change(ext);
             })
             .catch((error) => {
+              this._debugMessage('change stream', '============= rejected', { params, error });
               call(fail, error);
               this._errorStream.next({
                 ...params,
@@ -203,45 +213,8 @@ export default (bottle) => {
 
         _resolveChangeFunction(params) {
           this._debugMessage('_resolveChangeFunction', 'chaining', params);
-          this.change({ ...params, change: params.change(this.state) });
-        }
-
-        /**
-         * depracated; built into Change.
-         *
-         * @param params
-         * @param extension
-         * @returns {*}
-         * @private
-         */
-        _extendParams(params, extension) {
-          if (typeof params === 'function') {
-            return this._extendParams({ change: params }, extension);
-          }
-          if (isPromise(params)) {
-            return this._extendParams({ change: params }, extension);
-          }
-
-          const { done: oDone, fail: oFail } = params;
-          const { done: eDone, fail: eFail } = extension;
-          let done = oDone;
-          let fail = oFail;
-
-          if (eDone) {
-            done = async (...args) => {
-              await call(oDone, ...args);
-              return call(eDone, ...args);
-            };
-          }
-
-          if (eFail) {
-            fail = async (...args) => {
-              await call(oFail, ...args);
-              return call(eFail, ...args);
-            };
-          }
-
-          return Object.assign({}, params, extension, { done, fail });
+          console.log('resolving function', params);
+          this.change(params.extend({ change: params.change(this.state) }));
         }
 
         _delayedChange(params) {
@@ -334,11 +307,11 @@ export default (bottle) => {
             }
           }
 
-          this._setState(change);
-
           if (status) {
             this._setStatus(status);
           }
+          this._setState(change);
+
           call(done, this.state);
         }
 
@@ -400,11 +373,13 @@ export default (bottle) => {
         }
 
         initialize() {
-          this._debugMessage('initialize', '==========initializing', {});
           if (this._initPromise) return this._initPromise;
+          this._debugMessage('initialize', '==========initializing');
           this._setState(this._firstState);
-          this._setStatus(STORE_STATUS_INITIALIZING);
           if (this._initializer) {
+            this.change({
+              change: this._firstState, status: STORE_STATUS_INITIALIZING,
+            });
             this._initPromise = this.change({
               change: this._initializer, status: STORE_STATUS_INITIALIZED,
             });
@@ -415,7 +390,6 @@ export default (bottle) => {
           }
           return this._initPromise;
         }
-
         /**
          * this method delays an action until the store has been initialized
          * (or is in init error state).
@@ -471,9 +445,10 @@ export default (bottle) => {
           return promise;
         }
 
-        _debugMessage(source, message, params) {
+        _debugMessage(source, message, params = NOT_SET) {
           if (this._debug) {
             this._debugStream.next({
+              target: this.id,
               source,
               message,
               params,

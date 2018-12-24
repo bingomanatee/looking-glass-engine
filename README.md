@@ -342,7 +342,7 @@ export default class App extends React.PureComponent {
   }
   
   render() {
-    <StoreContext.Provider value={(
+    return <StoreContext.Provider value={(
       {
       actions: baseStore.actions,
        state: this.state.baseState
