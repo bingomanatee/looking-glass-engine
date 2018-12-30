@@ -27,10 +27,14 @@ export default (bottle) => {
 
     class Store {
       constructor(config = {}) {
-        const { state = STORE_STATE_UNSET_VALUE, starter = NOT_SET, debug = false } = config;
+        const {
+          state = STORE_STATE_UNSET_VALUE, starter = NOT_SET, debug = false, actions = {},
+        } = config;
+
         this.errorStream = new BehaviorSubject(false);
 
         try {
+          this.addActions(actions);
           if (debug) {
             this.debugStream = new BehaviorSubject({
               source: 'constructor',
@@ -41,6 +45,7 @@ export default (bottle) => {
           this._starter = starter;
           this._status = starter !== NOT_SET ? STORE_STATUS_NEW : STORE_STATUS_STARTED;
         } catch (err) {
+          console.log('constructor error:', err);
           this.onError(err);
         }
 
@@ -61,6 +66,23 @@ export default (bottle) => {
       }
 
       /* ----------------- METHODS ------------------------ */
+
+
+      addActions(mutators = {}) {
+        const actions = this.actions || {};
+
+        if (mutators && typeof mutators === 'object') {
+          Object.keys(mutators).forEach(name => actions[name] = this.makeAction(actions, name, mutators[name]));
+        } else {
+          this.errorStream.next({
+            source: 'addActions',
+            message: 'bad mutators',
+            mutators,
+          });
+        }
+
+        this.actions = actions;
+      }
 
       log(info) {
         if (this.debugStream) {
@@ -139,7 +161,10 @@ export default (bottle) => {
         }
 
         if (typeof change.value === 'function') {
-          const newState = change.value(this.state);
+          const newState = change.value({
+            state: this.state,
+            actions: this.actions,
+          });
           this.log({
             source: 'resolve', message: 'changing state value to function result:', newState, change,
           });
@@ -204,6 +229,7 @@ export default (bottle) => {
         }
         switch (this.status) {
           case NOT_SET:
+            this.after('NotSet', 'status is not set');
             this.delay(change);
             break;
 
