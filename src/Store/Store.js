@@ -9,7 +9,7 @@ export default (bottle) => {
     STORE_STATE_UNSET_VALUE,
     STORE_STATUS_NEW,
     STORE_STATUS_STARTING,
-    STORE_STATUS_INITIALIZATION_ERROR,
+    STORE_STATUS_ERROR,
     STORE_STATUS_STOPPED,
     STORE_STATUS_STARTED,
     NOT_SET,
@@ -17,12 +17,28 @@ export default (bottle) => {
     isPromise,
   }) => {
     /**
-     * store is a record of a value that changes over time.
-     * it's stateful. Until started (by calling store.start(),
-     * non-status changing updates are delayed.
+     * a Store is a record of a state that updates over time.
      *
-     * Stores can be stopped, by calling store.stop()
+     * It has a defined status indicating where in the initialization cycle it is:
      *
+     * NEW > STARTING > STARTED
+     *
+     * note that stores without a starer function begin at started (as start is a no-op without
+     * a starter function.
+     *
+     * and in some cases in a terminal "frozen" state
+     *
+     * > STOPPED | ERROR
+     *
+     * Stores can be stopped, by calling
+     *
+     *   store.stop()
+     *
+     * Stores can also be restarted to back out of a terminal state (> STARTED) by calling
+     *
+     *   store.restart(state?);
+     *
+     * Store updates and actions are designed to handle a "mixed
      */
 
     class Store {
@@ -45,7 +61,6 @@ export default (bottle) => {
           this._starter = starter;
           this._status = starter !== NOT_SET ? STORE_STATUS_NEW : STORE_STATUS_STARTED;
         } catch (err) {
-          console.log('constructor error:', err);
           this.onError(err);
         }
 
@@ -67,12 +82,50 @@ export default (bottle) => {
 
       /* ----------------- METHODS ------------------------ */
 
+      /**
+       * an action is a function that takes optional arguments and prepends the store snapshot in front
+       * of it.
+       *
+       * The signature - what parts of state are pulled into the action signature are arguable.
+       * Freactal, for instance seperates the provision of state from the provision of actions.
+       * As these are recursive in LGE, its more reasonable to provide both resources to all functions and
+       * unwrap them. So a mutator can return ....
+       *
+       *  - an object (the next state), OR
+       *  - a function that takes ({actions, state}) and returns .... ^ ^ OR
+       *  - a Promise that returns ^ ^
+       *
+       *  updates keep "unwrapping" functions and promises
+       *  til a non-function, non-promise is returned.
+       *  note, if a function returns undefined (i.e., has no return statement), it is a "No - op";
+       *  it will not change state _DIRECTLY_
+       *  but it might do so indirectly by calling other actions.
+       *
+       * @param name
+       * @param mutator
+       * @returns {function(...[*]): ChangePromise}
+       * @private
+       */
+      _makeAction(name, mutator) {
+        return (...args) => this.update(({ actions, state }) => mutator({
+          actions, state,
+        }, ...args), { action: name || true });
+      }
 
       addActions(mutators = {}) {
         const actions = this.actions || {};
 
         if (mutators && typeof mutators === 'object') {
-          Object.keys(mutators).forEach(name => actions[name] = this.makeAction(actions, name, mutators[name]));
+          Object.keys(mutators).forEach((name) => {
+            const mutator = mutators[name];
+            if (typeof mutator === 'function') {
+              actions[name] = this._makeAction(name, mutator);
+            } else {
+              this.errorStream.next({
+                source: 'addActions', message: `bad mutator ${name}`, mutator,
+              });
+            }
+          });
         } else {
           this.errorStream.next({
             source: 'addActions',
@@ -115,7 +168,7 @@ export default (bottle) => {
               this.update(change);
               break;
 
-            case STORE_STATUS_INITIALIZATION_ERROR:
+            case STORE_STATUS_ERROR:
               sub.unsubscribe();
               change.reject(this.initializationError
                 || new Error('initialization error before change resolved'));
@@ -128,7 +181,7 @@ export default (bottle) => {
               break;
 
             default:
-              // noop;
+            // noop;
           }
         });
         return change;
@@ -144,7 +197,7 @@ export default (bottle) => {
       resolve(change) {
         this.log({ source: 'resolve', change });
         switch (this.status) {
-          case STORE_STATUS_INITIALIZATION_ERROR:
+          case STORE_STATUS_ERROR:
             // stop
             change.reject(this.initializationError
               || new Error('initialization error before change resolved'));
@@ -166,7 +219,10 @@ export default (bottle) => {
             actions: this.actions,
           });
           this.log({
-            source: 'resolve', message: 'changing state value to function result:', newState, change,
+            source: 'resolve',
+            message: 'changing state value to function result:',
+            newState,
+            change,
           });
           change.value = newState;
           return this.resolve(change);
@@ -191,7 +247,9 @@ export default (bottle) => {
         } else {
           this.log({ source: 'resolve', message: 'changing - no status change', change });
         }
-        if (change.value !== NOT_SET) { this._state = change.value; }
+        if (change.value !== NOT_SET) {
+          this._state = change.value;
+        }
         this.stream.next({
           status: this.status,
           state: this.state,
@@ -227,6 +285,7 @@ export default (bottle) => {
         if (change.status) {
           return this.resolve(change);
         }
+
         switch (this.status) {
           case NOT_SET:
             this.after('NotSet', 'status is not set');
@@ -244,7 +303,7 @@ export default (bottle) => {
             return this.resolve(change);
             break;
 
-          case STORE_STATUS_INITIALIZATION_ERROR:
+          case STORE_STATUS_ERROR:
             this.afterInitError({
               source: 'update',
               message: 'change requested of store after init error',
@@ -291,6 +350,56 @@ export default (bottle) => {
         return info;
       }
 
+      /**
+       * this method is designed mainly to "back out" of an errored state.
+       * @param value
+       */
+
+      restart(value = NOT_SET) {
+        let out;
+        switch (this.status) {
+          // note: for non-error transient states, the value input is ignored..
+          case STORE_STATUS_NEW:
+            out = this.start();
+            break;
+
+          case STORE_STATUS_STARTING:
+            out = this._startPromise;
+            break;
+
+          case STORE_STATUS_STARTED:
+            out = this._startPromise || Promise.resolve(this.state);
+            break;
+
+            /* ----------- THESE ARE THE CONDITIONS THIS METHOD IS MEANT TO ADDRESS ---------- */
+
+          case STORE_STATUS_ERROR:
+            out = this.update(value, { status: STORE_STATUS_STARTED });
+            break;
+
+          case STORE_STATUS_STOPPED:
+            out = this.update(value, { status: STORE_STATUS_STARTED });
+            break;
+
+          case NOT_SET:
+            out = this.update(value, { status: STORE_STATUS_STARTED });
+            break;
+
+          default:
+            out = this.update(value, { status: STORE_STATUS_STARTED });
+        }
+
+        this._startPromise = out;
+        return out;
+      }
+
+      /**
+       * activate whatever starter methods (if any) exist.
+       * note the promise returns the state UPON INTIALIZATION but that value shouldn't be taken
+       * as canon as it might not be up to date.
+       *
+       * @returns {*}
+       */
       start() {
         this.log({ source: 'start' });
 
@@ -313,15 +422,18 @@ export default (bottle) => {
               }
               break;
 
+              /* ------------ MOST OF THESE ARE NEVER GOING TO HAPPEN ----------- */
+
             case STORE_STATUS_STARTING:
+              // REALLY should never happen - startPromise should be set now
               return Promise.reject(this.afterStart('tried to initialize after starting'));
               break;
 
             case STORE_STATUS_STARTED:
-              return Promise.resolve(this.state);
+              this._startPromise = Promise.resolve(this.state);
               break;
 
-            case STORE_STATUS_INITIALIZATION_ERROR:
+            case STORE_STATUS_ERROR:
               return Promise.reject(this.afterInitError('tried to initialize after error'));
               break;
 
@@ -355,7 +467,7 @@ export default (bottle) => {
       }
 
       onError() {
-        this._status = STORE_STATUS_INITIALIZATION_ERROR;
+        this._status = STORE_STATUS_ERROR;
         this.errorStream.next(new Error('bad starter'));
       }
     }
