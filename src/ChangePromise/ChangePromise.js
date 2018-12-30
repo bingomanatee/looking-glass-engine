@@ -9,8 +9,12 @@ export default (bottle) => {
      * On an error, calling reject will abort the ChangePromise instance.
      */
 
+    let nextId = 0;
+
     class ChangePromise {
       constructor(change = NOT_SET, info = {}) {
+        nextId += 1;
+        this.id = nextId;
         const executor = (done, fail) => {
           this._done = done;
           this._fail = fail;
@@ -29,6 +33,12 @@ export default (bottle) => {
 
       get resolved() {
         return this._resolved;
+      }
+
+      get status() {
+        if (!this.info) return NOT_SET;
+
+        return this.info.status || NOT_SET;
       }
 
       /**
