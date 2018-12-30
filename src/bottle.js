@@ -1,18 +1,12 @@
 import Bottle from 'bottlejs';
-import store from './Store';
-import engine from './Engine';
 import constants from './constants';
 import util from './util';
-import engineMerger from './EngineMerger';
-import change from './Change';
+import storeFactory from './Store';
+import changePromiseFactory from './ChangePromise';
+import storeMapFactory from './StoreMap';
 
 export default () => {
   const bottle = new Bottle();
-  store(bottle);
-  constants(bottle);
-  util(bottle);
-  engine(bottle);
-  engineMerger(bottle);
-  change(bottle);
+  [constants, changePromiseFactory, util, storeMapFactory, storeFactory].forEach(factory => factory(bottle));
   return bottle;
 };

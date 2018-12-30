@@ -1,5 +1,5 @@
-import store from './Store';
+import storeFactory from './Store';
 
 export default (bottle) => {
-  store(bottle);
+  storeFactory(bottle);
 };
