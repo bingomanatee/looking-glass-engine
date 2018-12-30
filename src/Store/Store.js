@@ -1,463 +1,112 @@
-/* eslint-disable no-unreachable,no-empty */
-import { combineLatest, BehaviorSubject, from } from 'rxjs';
-import { map, distinctUntilChanged, pairwise, filter } from 'rxjs/operators';
-import lGet from 'lodash.get';
-import lClone from 'lodash.clonedeep';
+/* eslint-disable no-unreachable */
+import { BehaviorSubject } from 'rxjs';
 
 export default (bottle) => {
-  bottle.factory(
-    'Store',
-    ({
-      STORE_STATE_UNSET_VALUE,
-      STORE_STATUS_NEW,
-      STORE_STATUS_INITIALIZING,
-      STORE_STATUS_INITIALIZATION_ERROR,
-      STORE_STATUS_INITIALIZED,
-      STORE_STATUS_STOPPED,
-      NOT_SET,
-      Change,
-      p, call, isPromise,
-    }) => {
-      class Store {
-        constructor(props = null) {
-          this._idFromProps(props);
-          this._parseProps(props);
-
-          this._initChangeStream();
-          this._initStateStream();
-          this._initErrorStream();
-          this._initStream();
-
-
-          if (this._debug) {
-            this._initDebugStream();
-          }
-
-          this._setStatus(STORE_STATUS_NEW);
-        }
-
-        stop() {
-          this._setStatus(STORE_STATUS_STOPPED);
-          this._changeStream.complete();
-          this._stateStream.complete();
-          this._stream.complete();
-          this._errorStream.complete();
-          if (this._debugStream) this._debugStream.complete();
-        }
-
-        _idFromProps(props) {
-          if (!Store._nextID) Store._nextID = 0;
-          if (props) {
-            const id = lGet(props, 'id');
-            if ((id) && (typeof id === 'string')) {
-              this.id = id;
-              return;
-            }
-            if ((id) && Number.isInteger(id) && (id >= Store._nextID)) {
-              this.id = id;
-              Store._nextID = id + 1;
-              return;
-            }
-          }
-          Store._nextID += 1;
-          this.id = Store._nextID;
-        }
-
-        /**
-         * props can be:
-         *
-         * 1: a function, in which case its the initializer.
-         * 2: an object with state or initializer as props, in which case its a parameter group
-         * 3. an object without state or initializer in which case its the firstState
-         *
-         * @param props
-         * @private
-         */
-
-        _parseProps(props) {
-          this._idFromProps(props);
-          this._firstState = STORE_STATE_UNSET_VALUE;
-          if (!props) return;
-          if (typeof props === 'function') {
-            props = { initializer: props };
-          }
-          let debug = false;
-          let initializer = null;
-          let firstState = STORE_STATE_UNSET_VALUE;
-          let noChangeBeforeInit = true;
-
-          if (typeof props === 'object') {
-            if ('state' in props || 'initializer' in props) {
-              initializer = lGet(props, 'initializer', initializer);
-              firstState = lGet(props, 'state', firstState);
-              debug = lGet(props, 'debug', debug);
-              noChangeBeforeInit = lGet(props, 'noChangeBeforeInit', noChangeBeforeInit);
-            } else {
-              firstState = props;
-            }
-
-            this._firstState = firstState;
-            this._initializer = initializer;
-          } else {
-            this._firstState = props;
-          }
-
-          this._noChangeBeforeInit = noChangeBeforeInit;
-          this._debug = debug;
-        }
-
-        _initStateStream() {
-          this._stateStream = new BehaviorSubject(this._firstState)
-            .pipe(distinctUntilChanged());
-          this._stateStream.subscribe((next) => {
-            this._state = next;
-          });
-        }
-
-        _initErrorStream() {
-          this._errorStream = new BehaviorSubject()
-            .pipe(distinctUntilChanged());
-        }
-
-        _initDebugStream() {
-          this._debugStream = new BehaviorSubject()
-            .pipe(map((data) => {
-              let params = data.params;
-              let change = null;
-              if (params instanceof Change) {
-                switch (params.type) {
-                  case 'value':
-                    if (typeof params.change === 'symbol') {
-                      change = params.change.toString();
-                    } else {
-                      try {
-                        change = JSON.stringify(params.change);
-                      } catch (err) {
-                        change = params.change;
-                      }
-                    }
-                    break;
-
-                  default:
-                    change = `change -- ${params.type}`;
-                }
-                return Object.assign({}, data, {
-                  store_state: this.state, store_status: this.status, change,
-                });
-              }
-              // console.log('params not change:> ', params);
-              if (typeof params === 'object') {
-                try {
-                  params = JSON.stringify(params);
-                } catch (err) {}
-              }
-              return Object.assign({}, data, {
-                store_state: this.state, store_status: this.status, params,
-              });
-            }));
-          /*          this._errorStream.subscribe((error) => {
-            this._debugStream.next({
-              source: '----(errorStream)',
-              message: 'error',
-              params: error,
-            });
-          });
-
-          this._changeStream.subscribe((params) => {
-            this._debugStream.next({
-              source: '-----(changeStream)',
-              message: 'params',
-              params,
-            });
-          });
-
-          this._stateStream.subscribe((state) => {
-            this._debugStream.next({
-              source: '----(stateStream)',
-              message: 'state',
-              params: state,
-            });
-          }); */
-        }
-
-        _initStream() {
-          this._stream = combineLatest(this._stateStream, this._statusStream)
-            .pipe(map(([streamedState, streamedStatus]) => ({
-              state: streamedState,
-              status: streamedStatus,
-            })), distinctUntilChanged());
-        }
-
-        _resolveChangePromise(params) {
-          const {
-            change,
-            fail = NOT_SET,
-          } = params;
-
-          this._debugMessage('change stream', 'is promise', params);
-          change
-            .then((newChange) => {
-              const ext = params.extend({ change: newChange });
-              this._debugMessage('change stream', '============= resolved', { params, newChange });
-              this.change(ext);
-            })
-            .catch((error) => {
-              this._debugMessage('change stream', '============= rejected', { params, error });
-              call(fail, error);
-              this._errorStream.next({
-                ...params,
-                error,
-              });
-            });
-        }
-
-        _resolveChangeFunction(params) {
-          this._debugMessage('_resolveChangeFunction', 'chaining', params);
-          console.log('resolving function', params);
-          this.change(params.extend({ change: params.change(this.state) }));
-        }
-
-        _delayedChange(params) {
-          // until status is updated changes are buffered
-          this._debugMessage('change stream', 'delaying execution until initializing is done', params);
-          this.onInit(params);
-        }
-
-        _changeError(error, params) {
-          const {
-            fail = NOT_SET,
-          } = params;
-
-          this._debugMessage('change stream', 'is error', { ...params, error });
-
-          call(fail, error, params);
-          this._errorStream.next({
-            ...params,
-            error,
-          });
-        }
-
-        _initChangeStream() {
-          this._changeStream = new BehaviorSubject(NOT_SET);
-          this._changeStream.subscribe(params => this.onChange(params), (error) => {
-            this._errorStream.next({
-              message: 'change stream error',
-              error,
-            });
-          });
-        }
-
-        onChange(params = NOT_SET) {
-          if (params === NOT_SET) {
-            return;
-          }
-
-          if (typeof params !== 'object') {
-            this.onChange({ change: params });
-            return;
-          }
-
-          const {
-            change = NOT_SET,
-            done,
-            status,
-          } = params;
-
-          if (this.isInitializeError) {
-            this._changeError(this.initializationError, params);
-            return;
-          }
-
-          if (!params) {
-            this._changeError(new Error('no change specified'), params);
-            return;
-          }
-
-          if (this._noChangeBeforeInit && !status) {
-            switch (this.status) {
-              case STORE_STATUS_INITIALIZING:
-                this._debugMessage('onChange', 'change before init -- suppressing', params);
-                return;
-                break;
-
-              case STORE_STATUS_NEW:
-                this._debugMessage('onChange', 'change while new -- suppressing', params);
-                return;
-                break;
-
-              default:
-              // continue;
-            }
-          }
-
-          if (isPromise(change)) {
-            this._resolveChangePromise(params);
-            return;
-          }
-
-          if (typeof change === 'function') {
-            this._resolveChangeFunction(params);
-            return;
-          }
-
-          if (!this.isInitialized) {
-            if (!status) {
-              this._delayedChange(params);
-              return;
-            }
-          }
-
-          if (status) {
-            this._setStatus(status);
-          }
-          this._setState(change);
-
-          call(done, this.state);
-        }
-
-        change(params = NOT_SET) {
-          if (params === NOT_SET) return Promise.resolve(NOT_SET);
-          let init = params;
-          if (typeof params === 'object' && (!params.change)) {
-            init = { change: params };
-          }
-          const changeRecord = (params instanceof Change) ? params : new Change(init);
-          const [change, promise] = changeRecord.asPromise();
-          this._changeStream.next(change);
-          return promise;
-        }
-
-        get state() {
-          return this._state;
-        }
-
-        _setState(value = NOT_SET) {
-          if (value !== NOT_SET) {
-            this._stateStream.next(value);
-          }
-        }
-
-        get status() {
-          return this._status;
-        }
-
-        _setStatus(status) {
-          if ([
-            STORE_STATUS_NEW,
-            STORE_STATUS_INITIALIZING,
-            STORE_STATUS_INITIALIZED,
-            STORE_STATUS_INITIALIZATION_ERROR,
-          ].includes(status)) {
-            this._status = status;
-          }
-        }
-
-        subscribe(...args) {
-          return this._stateStream.subscribe(...args);
-        }
-
-        get isInitializing() {
-          return this.status === STORE_STATUS_INITIALIZING;
-        }
-
-        get isNotUninitialized() {
-          return this.isInitialized || this.isInitializeError;
-        }
-
-        get isInitialized() {
-          return (this.status === STORE_STATUS_INITIALIZED);
-        }
-
-        get isInitializeError() {
-          return (this.status === STORE_STATUS_INITIALIZATION_ERROR);
-        }
-
-        initialize() {
-          if (this._initPromise) return this._initPromise;
-          this._debugMessage('initialize', '==========initializing');
-          this._setState(this._firstState);
-          if (this._initializer) {
-            this.change({
-              change: this._firstState, status: STORE_STATUS_INITIALIZING,
-            });
-            this._initPromise = this.change({
-              change: this._initializer, status: STORE_STATUS_INITIALIZED,
-            });
-          } else {
-            this._initPromise = this.change({
-              change: this._firstState, status: STORE_STATUS_INITIALIZED,
-            });
-          }
-          return this._initPromise;
-        }
-        /**
-         * this method delays an action until the store has been initialized
-         * (or is in init error state).
-         *
-         * @param params {change} or legit arguments to the new change constructor.
-         *
-         * @returns {Promise<never>}
-         */
-        onInit(params) {
-          const {
-            fail,
-          } = params;
-
-          if (this.isInitialized) {
-            return this.change(params);
-          }
-
-          if (this.isInitializeError) {
-            call(fail, this.initializationError);
-            return Promise.reject(this.initializationError);
-          }
-
-          let changeRecord;
-          if (!(params instanceof Change)) {
-            changeRecord = new Change(params);
-          } else {
-            changeRecord = params;
-          }
-
-          const [change, promise] = changeRecord.asPromise();
-
-          const sub = this._statusStream.subscribe(
-            (status) => {
-              switch (status) {
-                case STORE_STATUS_INITIALIZED:
-                  sub.unsubscribe();
-                  this.change(change);
-                  break;
-
-                case STORE_STATUS_INITIALIZATION_ERROR:
-                  sub.unsubscribe();
-                  call(change.fail, this.initializationError, this);
-                  break;
-
-                default:
-              }
-            },
-            (error) => {
-              call(change.fail, error, this);
-            },
-          );
-
-          return promise;
-        }
-
-        _debugMessage(source, message, params = NOT_SET) {
-          if (this._debug) {
-            this._debugStream.next({
-              target: this.id,
-              source,
-              message,
-              params,
-            });
-          }
+  bottle.factory('Store', ({
+    STORE_STATE_UNSET_VALUE,
+    STORE_STATUS_NEW,
+    STORE_STATUS_INITIALIZING,
+    STORE_STATUS_INITIALIZATION_ERROR,
+    STORE_STATUS_STOPPED,
+    STORE_STATUS_INITIALIZED,
+    NOT_SET,
+    ChangePromise,
+  }) => {
+    class Store {
+      constructor({ initialValue = STORE_STATE_UNSET_VALUE, initializer = NOT_SET }) {
+        this.errorStream = new BehaviorSubject(false);
+        this.stream = new BehaviorSubject(initialValue);
+        try {
+          this._state = initialValue;
+          this._initializer = initializer;
+          this._status = initializer !== NOT_SET ? STORE_STATUS_NEW : STORE_STATUS_INITIALIZED;
+        } catch (err) {
+          this.onError(err);
         }
       }
 
-      return Store;
-    },
-  );
+      /* ----------------- PROPERTIES --------------------- */
+
+      get status() { return this._status; }
+
+      get state() { return this._state; }
+
+      /* ----------------- METHODS ------------------------ */
+
+      update(change, info = NOT_SET) {
+        if (!(change instanceof ChangePromise)) {
+          change = new ChangePromise(change, info);
+        }
+      }
+
+      afterStart(info) {
+        return this.after('Start', info);
+      }
+
+      afterStop(info) {
+        return this.after('Stop', info);
+      }
+
+      afterInitError(info) {
+        return this.after('InitError', info);
+      }
+
+      after(what, info = 'tried to change') {
+        if (typeof info === 'string') {
+          return this.after(what, new Error(info));
+        }
+        if (!what) what = this._status.toString();
+        this.errorStream.next({ source: `after${what}`, error: info });
+        return info;
+      }
+
+      start() {
+        if (!this._startPromise) {
+          switch (this.status) {
+            case STORE_STATUS_NEW:
+              if (typeof this._initializer !== 'function') {
+                console.log('bad initializer', this._initializer, this);
+                this.onError('bad initializer');
+              }
+              this._startPromise = this.update(this._initializer, { status: STORE_STATUS_INITIALIZING })
+                .then(this.update(NOT_SET, { status: STORE_STATUS_INITIALIZED }));
+              break;
+
+            case STORE_STATUS_INITIALIZING:
+              return Promise.reject(this.afterStart('tried to initialize after starting'));
+              break;
+
+            case STORE_STATUS_INITIALIZED:
+              return Promise.resolve(this.state);
+              break;
+
+            case STORE_STATUS_INITIALIZATION_ERROR:
+              return Promise.reject(this.afterInitError('tried to initialize after error'));
+              break;
+
+            case STORE_STATUS_STOPPED:
+              return Promise.reject(this.afterStop('tried to initialize after stopped'));
+              break;
+
+            default:
+              console.log('strange status: ', this.status);
+              return Promise.reject(new Error(`strange status: ${this.status.toString()}`));
+          }
+        }
+
+        return this._startPromise;
+      }
+
+      stop() {
+        this._status = STORE_STATUS_STOPPED;
+      }
+
+      onError() {
+        this._status = STORE_STATUS_INITIALIZATION_ERROR;
+        this.errorStream.next(new Error('bad initializer'));
+      }
+    }
+
+    return Store;
+  });
 };
