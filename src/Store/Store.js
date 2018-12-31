@@ -23,7 +23,7 @@ export default (bottle) => {
      *
      * NEW > STARTING > STARTED
      *
-     * note that stores without a starer function begin at started (as start is a no-op without
+     * note that stores without a starer function begin at STARTED (as start() is a no-op without
      * a starter function.
      *
      * and in some cases in a terminal "frozen" state
@@ -44,7 +44,9 @@ export default (bottle) => {
     class Store {
       constructor(config = {}) {
         const {
-          state = STORE_STATE_UNSET_VALUE, starter = NOT_SET, debug = false, actions = {},
+          state = STORE_STATE_UNSET_VALUE,
+          starter = NOT_SET,
+          debug = false, actions = {},
         } = config;
 
         this.errorStream = new BehaviorSubject(false);
@@ -87,7 +89,7 @@ export default (bottle) => {
        * of it.
        *
        * The signature - what parts of state are pulled into the action signature are arguable.
-       * Freactal, for instance seperates the provision of state from the provision of actions.
+       * Freactal, for instance separates the provision of state from the provision of actions.
        * As these are recursive in LGE, its more reasonable to provide both resources to all functions and
        * unwrap them. So a mutator can return ....
        *
@@ -100,17 +102,13 @@ export default (bottle) => {
        *  note, if a function returns undefined (i.e., has no return statement), it is a "No - op";
        *  it will not change state _DIRECTLY_
        *  but it might do so indirectly by calling other actions.
-       *
-       * @param name
-       * @param mutator
-       * @returns {function(...[*]): ChangePromise}
-       * @private
        */
-      _makeAction(name, mutator) {
-        return (...args) => this.update(({ actions, state }) => mutator({
-          actions, state,
-        }, ...args), { action: name || true });
-      }
+
+
+      /**
+       *
+       * @param mutators {Object} a hash of name/function | value parameters.
+       */
 
       addActions(mutators = {}) {
         const actions = this.actions || {};
@@ -118,13 +116,7 @@ export default (bottle) => {
         if (mutators && typeof mutators === 'object') {
           Object.keys(mutators).forEach((name) => {
             const mutator = mutators[name];
-            if (typeof mutator === 'function') {
-              actions[name] = this._makeAction(name, mutator);
-            } else {
-              this.errorStream.next({
-                source: 'addActions', message: `bad mutator ${name}`, mutator,
-              });
-            }
+            actions[name] = this.addAction(name, mutator);
           });
         } else {
           this.errorStream.next({
@@ -135,6 +127,19 @@ export default (bottle) => {
         }
 
         this.actions = actions;
+      }
+
+      /**
+       *
+       * @param name
+       * @param mutator
+       * @returns {function(...[*]): ChangePromise}
+       */
+      addAction(name, mutator) {
+        if (typeof mutator !== 'function') {
+          mutator = () => mutator;
+        }
+        return (...args) => this.update(() => mutator(this, ...args), { action: name || true });
       }
 
       log(info) {
@@ -247,7 +252,7 @@ export default (bottle) => {
         } else {
           this.log({ source: 'resolve', message: 'changing - no status change', change });
         }
-        if (change.value !== NOT_SET) {
+        if (change.value !== NOT_SET && (typeof change.value !== 'undefined')) {
           this._state = change.value;
         }
         this.stream.next({

@@ -13,6 +13,7 @@ export default (bottle) => {
 
     class ChangePromise {
       constructor(change = NOT_SET, info = {}) {
+        if (typeof change === 'undefined') change = NOT_SET;
         nextId += 1;
         this.id = nextId;
         const executor = (done, fail) => {
@@ -54,7 +55,6 @@ export default (bottle) => {
        */
       resolve(value = NOT_SET) {
         if (this.resolved) {
-          console.log('ChangePromise resolve called with ', value, 'after resolve');
           return this.promise;
         }
         if (value !== NOT_SET) {
