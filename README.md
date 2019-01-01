@@ -32,7 +32,7 @@ const teaStore = new Store({teas: [
 ]});
 
 let sub = teaStore.subscribe((store) => {
-  console.log('you have ', store.teas.length, ' teas for sale: ', ...store.teas.map(t => t.name));
+  console._log('you have ', store.teas.length, ' teas for sale: ', ...store.teas.map(t => t.name));
   if (store.teas.length > 3) sub.unsubscribe();
 });
 
@@ -129,7 +129,7 @@ All change that is requested before the store is initialized is deferred.
 ## Changing State
 
 The store's state is updated with a method `.change([variant])`. Change returns a promise that when done,
-indicates the change has been resolved. _however_: change will attempt to resolve the change synchronously
+indicates the change has been resolved. _however_: change will attempt to _resolve the change synchronously
 if it is possible. 
 
 Even the initial state and the initializer are special case change requests. They pass through because they have a

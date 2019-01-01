@@ -5,7 +5,7 @@ export default (bottle) => {
      * note a change promise is both a token that gets seeded through the change cycle of stores
      * and a "Promise" -- it has the signature of a promise and behaves like one.
      *
-     * When it's been fulfilled, calling resolve will conclude the ChangePromise instance.
+     * When it's been fulfilled, calling _resolve will conclude the ChangePromise instance.
      * On an error, calling reject will abort the ChangePromise instance.
      */
 
@@ -43,7 +43,7 @@ export default (bottle) => {
       }
 
       /**
-       * resolve (optionally) sets the final value of the change
+       * _resolve (optionally) sets the final value of the change
        * and closes the promise. It can only execute once.
        *
        * If value is (or is set to) a value then the change
@@ -72,7 +72,7 @@ export default (bottle) => {
 
       reject(value = NOT_SET) {
         if (this.resolved) {
-          console.log('ChangePromise reject called with ', value, 'after resolve');
+          console.log('ChangePromise reject called with ', value, 'after _resolve');
           return this.promise;
         }
 

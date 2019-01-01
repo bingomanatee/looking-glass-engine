@@ -7,11 +7,11 @@ import { BehaviorSubject } from 'rxjs';
 export default (bottle) => {
   bottle.factory('Store', ({
     STORE_STATE_UNSET_VALUE,
-    STORE_STATUS_NEW,
-    STORE_STATUS_STARTING,
-    STORE_STATUS_ERROR,
-    STORE_STATUS_STOPPED,
-    STORE_STATUS_STARTED,
+    S_NEW,
+    S_STARTING,
+    S_ERROR,
+    S_STOPPED,
+    S_STARTED,
     NOT_SET,
     ChangePromise,
     isPromise,
@@ -43,11 +43,15 @@ export default (bottle) => {
 
     class Store {
       constructor(config = {}) {
-        const {
+        let {
           state = STORE_STATE_UNSET_VALUE,
+        } = config;
+        const {
           starter = NOT_SET,
           debug = false, actions = {},
         } = config;
+
+        if (state === STORE_STATE_UNSET_VALUE && starter === NOT_SET) state = {};
 
         this.errorStream = new BehaviorSubject(false);
 
@@ -61,7 +65,7 @@ export default (bottle) => {
           }
           this._state = state;
           this._starter = starter;
-          this._status = starter !== NOT_SET ? STORE_STATUS_NEW : STORE_STATUS_STARTED;
+          this._status = starter !== NOT_SET ? S_NEW : S_STARTED;
         } catch (err) {
           this.onError(err);
         }
@@ -85,13 +89,22 @@ export default (bottle) => {
       /* ----------------- METHODS ------------------------ */
 
       /**
-       * an action is a function that takes optional arguments and prepends the store snapshot in front
-       * of it.
+       * an action is a function that takes optional arguments
+       * and prepends the store snapshot in front of it. i.e.,
+       *
+       * myStore = new Store({
+       *   state: {a: 4},}
+       *   actions: {
+       *     addA:({state}, a) => ({...state, a: state.a + a})
+       *   }
+       * }
+       *
+       * myStore.actions.addA(3);
+       * // myStore.state.a === 7;
        *
        * The signature - what parts of state are pulled into the action signature are arguable.
        * Freactal, for instance separates the provision of state from the provision of actions.
-       * As these are recursive in LGE, its more reasonable to provide both resources to all functions and
-       * unwrap them. So a mutator can return ....
+       * So an action function can return ....
        *
        *  - an object (the next state), OR
        *  - a function that takes ({actions, state}) and returns .... ^ ^ OR
@@ -104,25 +117,24 @@ export default (bottle) => {
        *  but it might do so indirectly by calling other actions.
        */
 
-
       /**
        *
-       * @param mutators {Object} a hash of name/function | value parameters.
+       * @param actionsMap {Object} a hash of name/function | value parameters.
        */
 
-      addActions(mutators = {}) {
+      addActions(actionsMap = {}) {
         const actions = this.actions || {};
 
-        if (mutators && typeof mutators === 'object') {
-          Object.keys(mutators).forEach((name) => {
-            const mutator = mutators[name];
+        if (actionsMap && typeof actionsMap === 'object') {
+          Object.keys(actionsMap).forEach((name) => {
+            const mutator = actionsMap[name];
             actions[name] = this.addAction(name, mutator);
           });
         } else {
           this.errorStream.next({
             source: 'addActions',
-            message: 'bad mutators',
-            mutators,
+            message: 'bad actionsMap',
+            mutators: actionsMap,
           });
         }
 
@@ -142,129 +154,6 @@ export default (bottle) => {
         return (...args) => this.update(() => mutator(this, ...args), { action: name || true });
       }
 
-      log(info) {
-        if (this.debugStream) {
-          try {
-            this.debugStream.next({
-              ...info,
-              status: this.status,
-              state: clone(this.state),
-            });
-          } catch (err) {
-            this.debugStream.next({
-              info,
-              status: this.status,
-              state: this.state,
-              _cloneError: err,
-            });
-          }
-        }
-      }
-
-      delay(change) {
-        this.log({
-          source: 'delay',
-          change,
-        });
-        const sub = this.stream.subscribe(() => {
-          switch (this.status) {
-            case STORE_STATUS_STARTED:
-              sub.unsubscribe();
-              this.update(change);
-              break;
-
-            case STORE_STATUS_ERROR:
-              sub.unsubscribe();
-              change.reject(this.initializationError
-                || new Error('initialization error before change resolved'));
-              break;
-
-            case STORE_STATUS_STOPPED:
-              sub.unsubscribe();
-              change.reject(this.initializationError
-                || new Error('store stopped before change resolved'));
-              break;
-
-            default:
-            // noop;
-          }
-        });
-        return change;
-      }
-
-      /**
-       * resolve should only be hit during/after initialization is complete.
-       * Due to promise delays, we still need to check post-init conditions.
-       *
-       * @param change {ChangePromise}
-       * @returns {ChangePromise} (the input)
-       */
-      resolve(change) {
-        this.log({ source: 'resolve', change });
-        switch (this.status) {
-          case STORE_STATUS_ERROR:
-            // stop
-            change.reject(this.initializationError
-              || new Error('initialization error before change resolved'));
-            return change;
-            break;
-
-          case STORE_STATUS_STOPPED:
-            change.reject(this.initializationError
-              || new Error('store stopped before change resolved'));
-            break;
-
-          default:
-          // continue;
-        }
-
-        if (typeof change.value === 'function') {
-          const newState = change.value({
-            state: this.state,
-            actions: this.actions,
-          });
-          this.log({
-            source: 'resolve',
-            message: 'changing state value to function result:',
-            newState,
-            change,
-          });
-          change.value = newState;
-          return this.resolve(change);
-        }
-
-        if (isPromise(change.value)) {
-          change.value
-            .then((unwrapped) => {
-              change.value = unwrapped;
-              this.resolve(change);
-            })
-            .catch((err) => {
-              change.reject(err);
-            });
-          return change;
-        }
-
-        // -- end of the road!
-        if (change.status) {
-          this.log({ source: 'resolve', message: 'updating status', change });
-          this._status = change.status;
-        } else {
-          this.log({ source: 'resolve', message: 'changing - no status change', change });
-        }
-        if (change.value !== NOT_SET && (typeof change.value !== 'undefined')) {
-          this._state = change.value;
-        }
-        this.stream.next({
-          status: this.status,
-          state: this.state,
-        });
-        this.log({ source: 'resolve', message: 'stream updated', change });
-        change.resolve(change.value);
-        this.log({ source: 'resolve', message: 'change resolved', change });
-        return change;
-      }
-
       /**
        * takes (or creates) a ChangePromise (which it returns)
        * and attempts to trigger a state change.
@@ -282,33 +171,33 @@ export default (bottle) => {
       update(change, info = NOT_SET) {
         if (!(change instanceof ChangePromise)) {
           change = new ChangePromise(change, info);
-          this.log({ source: 'update', message: 'created ChangePromise', change });
+          this._log({ source: 'update', message: 'created ChangePromise', change });
         } else {
-          this.log({ source: 'update', message: 'received ChangePromise', change });
+          this._log({ source: 'update', message: 'received ChangePromise', change });
         }
 
         if (change.status) {
-          return this.resolve(change);
+          return this._resolve(change);
         }
 
         switch (this.status) {
           case NOT_SET:
             this.after('NotSet', 'status is not set');
-            this.delay(change);
+            this._delay(change);
             break;
 
-          case STORE_STATUS_STARTING:
+          case S_STARTING:
             if (change.status) {
-              return this.resolve(change);
+              return this._resolve(change);
             }
-            this.delay(change);
+            this._delay(change);
             break;
 
-          case STORE_STATUS_STARTED:
-            return this.resolve(change);
+          case S_STARTED:
+            return this._resolve(change);
             break;
 
-          case STORE_STATUS_ERROR:
+          case S_ERROR:
             this.afterInitError({
               source: 'update',
               message: 'change requested of store after init error',
@@ -317,7 +206,7 @@ export default (bottle) => {
             setTimeout(() => change.reject(new Error('change requested of errored store')));
             break;
 
-          case STORE_STATUS_STOPPED:
+          case S_STOPPED:
             this.afterStop({
               source: 'update',
               message: 'change requested to stopped store',
@@ -331,6 +220,123 @@ export default (bottle) => {
             change.reject(new Error(`change cannot resolve - state in unknown status ${this.status.toString()}`));
         }
 
+        return change;
+      }
+
+      _delay(change) {
+        this._log({
+          source: '_delay',
+          change,
+        });
+        const sub = this.stream.subscribe(() => {
+          switch (this.status) {
+            case S_STARTED:
+              sub.unsubscribe();
+              this.update(change);
+              break;
+
+            case S_ERROR:
+              sub.unsubscribe();
+              change.reject(this.initializationError
+                || new Error('initialization error before change resolved'));
+              break;
+
+            case S_STOPPED:
+              sub.unsubscribe();
+              change.reject(this.initializationError
+                || new Error('store stopped before change resolved'));
+              break;
+
+            default:
+            // noop;
+          }
+        });
+        return change;
+      }
+
+      /**
+       * _resolve should only be hit during/after initialization is complete.
+       * Due to promise delays, we still need to check post-init conditions.
+       *
+       * @param change {ChangePromise}
+       * @returns {ChangePromise} (the input)
+       */
+      _resolve(change) {
+        this._log({ source: '_resolve', change });
+        switch (this.status) {
+          case S_ERROR:
+            // stop
+            change.reject(this.initializationError
+              || new Error('initialization error before change resolved'));
+            return change;
+            break;
+
+          case S_STOPPED:
+            change.reject(this.initializationError
+              || new Error('store stopped before change resolved'));
+            break;
+
+          default:
+          // continue;
+        }
+
+        if (typeof change.value === 'function') {
+          let newState;
+          try {
+            newState = change.value({
+              state: this.state,
+              actions: this.actions,
+            });
+          } catch (error) {
+            this._log({
+              source: '_resolve',
+              message: 'error from change function',
+              error,
+            });
+
+            change.reject(error);
+            // this.onError?
+            this.errorStream.next({ error, change });
+            return change;
+          }
+          this._log({
+            source: '_resolve',
+            message: 'changing state value to function result:',
+            newState,
+            change,
+          });
+          change.value = newState;
+          return this._resolve(change);
+        }
+
+        if (isPromise(change.value)) {
+          change.value
+            .then((unwrapped) => {
+              change.value = unwrapped;
+              this._resolve(change);
+            })
+            .catch((err) => {
+              change.reject(err);
+            });
+          return change;
+        }
+
+        // -- end of the road!
+        if (change.status) {
+          this._log({ source: '_resolve', message: 'updating status', change });
+          this._status = change.status;
+        }
+
+        if (change.value !== NOT_SET && (typeof change.value !== 'undefined')) {
+          this._state = change.value;
+        }
+        this.stream.next({
+          status: this.status,
+          state: this.state,
+        });
+        this._log({ source: '_resolve', message: 'stream updated', change });
+        change.resolve(change.value);
+        this._log({ source: '_resolve', message: 'change resolved', change });
         return change;
       }
 
@@ -364,34 +370,34 @@ export default (bottle) => {
         let out;
         switch (this.status) {
           // note: for non-error transient states, the value input is ignored..
-          case STORE_STATUS_NEW:
+          case S_NEW:
             out = this.start();
             break;
 
-          case STORE_STATUS_STARTING:
+          case S_STARTING:
             out = this._startPromise;
             break;
 
-          case STORE_STATUS_STARTED:
+          case S_STARTED:
             out = this._startPromise || Promise.resolve(this.state);
             break;
 
             /* ----------- THESE ARE THE CONDITIONS THIS METHOD IS MEANT TO ADDRESS ---------- */
 
-          case STORE_STATUS_ERROR:
-            out = this.update(value, { status: STORE_STATUS_STARTED });
+          case S_ERROR:
+            out = this.update(value, { status: S_STARTED });
             break;
 
-          case STORE_STATUS_STOPPED:
-            out = this.update(value, { status: STORE_STATUS_STARTED });
+          case S_STOPPED:
+            out = this.update(value, { status: S_STARTED });
             break;
 
           case NOT_SET:
-            out = this.update(value, { status: STORE_STATUS_STARTED });
+            out = this.update(value, { status: S_STARTED });
             break;
 
           default:
-            out = this.update(value, { status: STORE_STATUS_STARTED });
+            out = this.update(value, { status: S_STARTED });
         }
 
         this._startPromise = out;
@@ -406,43 +412,42 @@ export default (bottle) => {
        * @returns {*}
        */
       start() {
-        this.log({ source: 'start' });
+        this._log({ source: 'start' });
 
         if (!this._startPromise) {
           switch (this.status) {
-            case STORE_STATUS_NEW:
+            case S_NEW:
 
               if (!this._starter) {
-                this.log({ source: 'start', message: 'no starter - updating status' });
-                this._startPromise = this.update(NOT_SET, { status: STORE_STATUS_STARTED });
+                this._log({ source: 'start', message: 'no starter - updating status' });
+                this._startPromise = this.update(NOT_SET, { status: S_STARTED });
               } else {
                 if (typeof this._starter !== 'function') {
-                  console.log('bad starter', this._starter, this);
                   this.onError('bad starter');
-                  return Promise.reject('bad starter');
+                  return Promise.reject(new Error('bad starter'));
                 }
                 // synchronous status change;
-                this.resolve(new ChangePromise(NOT_SET, { status: STORE_STATUS_STARTING }));
-                this._startPromise = this.update(this._starter, { status: STORE_STATUS_STARTED });
+                this._resolve(new ChangePromise(NOT_SET, { status: S_STARTING }));
+                this._startPromise = this.update(this._starter, { status: S_STARTED });
               }
               break;
 
               /* ------------ MOST OF THESE ARE NEVER GOING TO HAPPEN ----------- */
 
-            case STORE_STATUS_STARTING:
+            case S_STARTING:
               // REALLY should never happen - startPromise should be set now
               return Promise.reject(this.afterStart('tried to initialize after starting'));
               break;
 
-            case STORE_STATUS_STARTED:
+            case S_STARTED:
               this._startPromise = Promise.resolve(this.state);
               break;
 
-            case STORE_STATUS_ERROR:
+            case S_ERROR:
               return Promise.reject(this.afterInitError('tried to initialize after error'));
               break;
 
-            case STORE_STATUS_STOPPED:
+            case S_STOPPED:
               return Promise.reject(this.afterStop('tried to initialize after stopped'));
               break;
 
@@ -465,15 +470,34 @@ export default (bottle) => {
        */
       stop(value) {
         if (value) {
-          return this.update(value, { status: STORE_STATUS_STOPPED });
+          return this.update(value, { status: S_STOPPED });
         }
-        this._status = STORE_STATUS_STOPPED;
+        this._status = S_STOPPED;
         return Promise.resolve(this.state);
       }
 
       onError() {
-        this._status = STORE_STATUS_ERROR;
+        this._status = S_ERROR;
         this.errorStream.next(new Error('bad starter'));
+      }
+
+      _log(info) {
+        if (this.debugStream) {
+          try {
+            this.debugStream.next({
+              ...info,
+              status: this.status,
+              state: clone(this.state),
+            });
+          } catch (err) {
+            this.debugStream.next({
+              info,
+              status: this.status,
+              state: this.state,
+              _cloneError: err,
+            });
+          }
+        }
       }
     }
 

@@ -10,6 +10,6 @@ const t2 = from(new Promise((y, n) => {
 }));
 const s = race(t, t2);
 
-s.subscribe(m => console.log('m:', m, 'delay: ', Date.now() - now), e => console.log('error:', e), () => {
+s.subscribe(m => console.log('m:', m, '_delay: ', Date.now() - now), e => console.log('error:', e), () => {
   console.log('done');
 });

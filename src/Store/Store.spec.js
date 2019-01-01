@@ -11,18 +11,18 @@ describe('looking-glass-engine', () => {
   describe('Store', () => {
     let Store;
     let STORE_STATE_UNSET_VALUE;
-    let STORE_STATUS_NEW;
-    let STORE_STATUS_STARTED;
-    let STORE_STATUS_STARTING;
+    let S_NEW;
+    let S_STARTED;
+    let S_STARTING;
     let myStore;
     let log;
 
     beforeEach(() => {
       Store = bottle.container.Store;
       STORE_STATE_UNSET_VALUE = bottle.container.STORE_STATE_UNSET_VALUE;
-      STORE_STATUS_NEW = bottle.container.STORE_STATUS_NEW;
-      STORE_STATUS_STARTED = bottle.container.STORE_STATUS_STARTED;
-      STORE_STATUS_STARTING = bottle.container.STORE_STATUS_STARTING;
+      S_NEW = bottle.container.S_NEW;
+      S_STARTED = bottle.container.S_STARTED;
+      S_STARTING = bottle.container.S_STARTING;
     });
 
     describe('initialization', () => {
@@ -36,11 +36,11 @@ describe('looking-glass-engine', () => {
           beforeEach(() => {
             myStore = new Store();
           });
-          it('should have a state of STORE_STATE_UNSET_VALUE', () => {
-            expect(myStore.state).toEqual(STORE_STATE_UNSET_VALUE);
+          it('should have a state of empty object', () => {
+            expect(myStore.state).toEqual({});
           });
-          it('should have a status of STORE_STATUS_STARTED', () => {
-            expect(myStore.status).toEqual(STORE_STATUS_STARTED);
+          it('should have a status of S_STARTED', () => {
+            expect(myStore.status).toEqual(S_STARTED);
           });
         });
 
@@ -56,8 +56,8 @@ describe('looking-glass-engine', () => {
           it('should have a state of STORE_STATE_UNSET_VALUE', () => {
             expect(myStore.state).toEqual(1);
           });
-          it('should have a status of STORE_STATUS_STARTED', () => {
-            expect(myStore.status).toEqual(STORE_STATUS_STARTED);
+          it('should have a status of S_STARTED', () => {
+            expect(myStore.status).toEqual(S_STARTED);
           });
         });
 
@@ -73,8 +73,8 @@ describe('looking-glass-engine', () => {
           it('should have a state of STORE_STATE_UNSET_VALUE', () => {
             expect(myStore.state).toEqual(STORE_STATE_UNSET_VALUE);
           });
-          it('should have a status of STORE_STATUS_NEW', () => {
-            expect(myStore.status).toEqual(STORE_STATUS_NEW);
+          it('should have a status of S_NEW', () => {
+            expect(myStore.status).toEqual(S_NEW);
           });
         });
 
@@ -92,8 +92,8 @@ describe('looking-glass-engine', () => {
             expect(myStore.state).toEqual(1);
           });
 
-          it('should have a status of STORE_STATUS_NEW', () => {
-            expect(myStore.status).toEqual(STORE_STATUS_NEW);
+          it('should have a status of S_NEW', () => {
+            expect(myStore.status).toEqual(S_NEW);
           });
         });
       });
@@ -109,14 +109,14 @@ describe('looking-glass-engine', () => {
             myStore = new Store();
           });
 
-          it('should have a state of STORE_STATE_UNSET_VALUE', () => {
+          it('should have a state of empty object', () => {
             myStore.start();
-            expect(myStore.state).toEqual(STORE_STATE_UNSET_VALUE);
+            expect(myStore.state).toEqual({});
           });
 
-          it('should have a status of STORE_STATUS_STARTED', () => {
+          it('should have a status of S_STARTED', () => {
             myStore.start();
-            expect(myStore.status).toEqual(STORE_STATUS_STARTED);
+            expect(myStore.status).toEqual(S_STARTED);
           });
         });
 
@@ -135,9 +135,9 @@ describe('looking-glass-engine', () => {
             expect(myStore.state).toEqual(1);
           });
 
-          it('should have a status of STORE_STATUS_STARTED', () => {
+          it('should have a status of S_STARTED', () => {
             myStore.start();
-            expect(myStore.status).toEqual(STORE_STATUS_STARTED);
+            expect(myStore.status).toEqual(S_STARTED);
           });
         });
 
@@ -159,9 +159,9 @@ describe('looking-glass-engine', () => {
             expect(myStore.state).toEqual(1);
           });
 
-          it('should have a status of STORE_STATUS_STARTED', () => {
+          it('should have a status of S_STARTED', () => {
             myStore.start();
-            expect(myStore.status).toEqual(STORE_STATUS_STARTED);
+            expect(myStore.status).toEqual(S_STARTED);
           });
         });
 
@@ -179,13 +179,13 @@ describe('looking-glass-engine', () => {
 
           it('should have a state of 1', () => {
             myStore.start();
-            // console.log('log:', util.inspect(log, { depth: 8 }));
+            // console._log('_log:', util.inspect(_log, { depth: 8 }));
             expect(myStore.state).toEqual(1);
           });
 
-          it('should have a status of STORE_STATUS_STARTED', () => {
+          it('should have a status of S_STARTED', () => {
             myStore.start();
-            expect(myStore.status).toEqual(STORE_STATUS_STARTED);
+            expect(myStore.status).toEqual(S_STARTED);
           });
         });
 
@@ -199,9 +199,9 @@ describe('looking-glass-engine', () => {
             myStore.debugStream.subscribe(value => log.push(value));
           });
 
-          it('should be in sync status STORE_STATUS_STARTING', async () => {
+          it('should be in sync status S_STARTING', async () => {
             myStore.start();
-            expect(myStore.status).toEqual(STORE_STATUS_STARTING);
+            expect(myStore.status).toEqual(S_STARTING);
           });
 
           it('should have a sync state of STORE_STATE_UNSET_VALUE', async () => {
@@ -210,9 +210,9 @@ describe('looking-glass-engine', () => {
             expect(myStore.state).toEqual(STORE_STATE_UNSET_VALUE);
           });
 
-          it('should resolve to STORE_STATUS_STARTED', async () => {
+          it('should _resolve to S_STARTED', async () => {
             await myStore.start();
-            expect(myStore.status).toEqual(STORE_STATUS_STARTED);
+            expect(myStore.status).toEqual(S_STARTED);
           });
 
           it('should have an async state of 2', async () => {
@@ -240,7 +240,7 @@ describe('looking-glass-engine', () => {
       });
 
       it('should be in started status', () => {
-        expect(myStore.status).toEqual(STORE_STATUS_STARTED);
+        expect(myStore.status).toEqual(S_STARTED);
       });
 
       describe('noop actions', () => {
