@@ -1,3 +1,7 @@
+import { from, race } from 'rxjs';
+import { delay } from 'rxjs/operators';
+import lGet from 'lodash.get';
+
 export default (bottle) => {
   /**
    * decomposes a promise into result and error;
@@ -34,6 +38,7 @@ export default (bottle) => {
     if (fn && typeof fn === 'function') {
       return fn(args);
     }
+    return null;
   });
 
   bottle.factory('explodePromise', ({ NOT_SET, isPromise }) => (promise) => {
@@ -57,7 +62,7 @@ export default (bottle) => {
   });
 
   bottle.factory('obj', () => (key, value) => {
-    let out = {};
+    const out = {};
     out[key] = value;
     return out;
   });
@@ -76,4 +81,29 @@ export default (bottle) => {
   });
 
   bottle.factory('mergeIntoState', () => change => state => Object.assign({}, state, change));
+
+  bottle.factory('timeLimitObservable', () => (observable, delayTime = 1000, errorMessage) => {
+    const killSwitch = from([false, new Error(errorMessage || `took over ${delayTime / 1000} secs`)])
+      .pipe(delay(delayTime));
+
+    return race(observable, killSwitch);
+  });
+
+  bottle.factory('isObject', ({ NOT_SET }) => (item) => {
+    if ((!item) || (item === NOT_SET)) return false;
+    return typeof item === 'object';
+  });
+
+  bottle.factory('toError', () => (errOrStr) => {
+    if (typeof errOrStr === 'string') return new Error(errOrStr);
+    if (lGet(errOrStr, 'message')) {
+      return errOrStr;
+    }
+    return new Error('-- unknown error --');
+  });
+
+  bottle.factory('isValidPropName', () => (name) => {
+    if (!(name && typeof name === 'string')) return false;
+    return /^[a-zA-Z_$][0-9a-zA-Z_$]*$/.test(name);
+  });
 };

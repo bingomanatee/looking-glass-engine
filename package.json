@@ -1,6 +1,6 @@
 {
-  "name": "@wonderlandlabs/freactal-engine",
-  "version": "1.0.6",
+  "name": "@wonderlandlabs/looking-glass-engine",
+  "version": "1.0.8",
   "main": "build/index.js",
   "license": "MIT",
   "scripts": {
