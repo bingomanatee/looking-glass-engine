@@ -2,7 +2,7 @@ import bottle from './bottle';
 
 
 const {
-  Store, Engine, EngineMerger, update, mergeIntoState,
+  Store, StoreMap, update, mergeIntoState,
   STORE_STATE_UNSET_VALUE
   , S_NEW
   , S_STARTED
@@ -15,7 +15,6 @@ const {
   , NOT_SET,
 } = bottle().container;
 
-console.log('Engine:', Engine);
 export {
   STORE_STATE_UNSET_VALUE
   , S_NEW
@@ -28,8 +27,7 @@ export {
   , ACTION_COMPLETE
   , NOT_SET,
   Store,
-  Engine,
-  EngineMerger,
+  StoreMap,
   update,
   mergeIntoState,
 };
