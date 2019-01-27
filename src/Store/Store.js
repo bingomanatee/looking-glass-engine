@@ -65,8 +65,6 @@ export default (bottle) => {
 
         if (state === STORE_STATE_UNSET_VALUE && starter === NOT_SET) state = {};
 
-        this.errorStream = new BehaviorSubject(false);
-
         if (debug) {
           this.debugStream = new BehaviorSubject({
             source: 'constructor',
@@ -274,7 +272,7 @@ export default (bottle) => {
             actions[name] = this.makeAction(name, mutator);
           });
         } else {
-          this.errorStream.next({
+          this.stream.error({
             source: 'addActions',
             message: 'bad actionsMap',
             mutators: actionsMap,
@@ -314,7 +312,9 @@ export default (bottle) => {
         if (!isFunction(mutator)) {
           mutator = () => mutator;
         }
-        return (...args) => this.update(() => mutator(this, ...args), { ...info, action: name || true });
+        return (...args) => this.update(() => mutator(this, ...args), {
+          ...info, action: name || true,
+        });
       }
 
       /**
@@ -401,13 +401,13 @@ export default (bottle) => {
 
             case S_ERROR:
               sub.unsubscribe();
-              change.reject(this.initializationError
+              change.reject(this.startError
                 || new Error('initialization error before change resolved'));
               break;
 
             case S_STOPPED:
               sub.unsubscribe();
-              change.reject(this.initializationError
+              change.reject(this.startError
                 || new Error('store stopped before change resolved'));
               break;
 
@@ -430,13 +430,13 @@ export default (bottle) => {
         switch (this.status) {
           case S_ERROR:
             // stop
-            change.reject(this.initializationError
+            change.reject(this.startError
               || new Error('initialization error before change resolved'));
             return change;
             break;
 
           case S_STOPPED:
-            change.reject(this.initializationError
+            change.reject(this.startError
               || new Error('store stopped before change resolved'));
             break;
 
@@ -460,7 +460,7 @@ export default (bottle) => {
               // from the start action
               this._status = S_ERROR;
             }
-            this.errorStream.next({ error, change });
+            this.stream.error({ error, change });
             return change;
           }
           this._log({
@@ -525,7 +525,7 @@ export default (bottle) => {
           return this.after(what, new Error(error));
         }
         if (!what) what = this._status.toString();
-        this.errorStream.next({ source: `after${what}`, error: error });
+        this.stream.error({ source: `after${what}`, error: error });
         return error;
       }
 
@@ -550,7 +550,7 @@ export default (bottle) => {
             out = this._startPromise || Promise.resolve(this.state);
             break;
 
-            /* ----------- THESE ARE THE CONDITIONS THIS METHOD IS MEANT TO ADDRESS ---------- */
+          /* ----------- THESE ARE THE CONDITIONS THIS METHOD IS MEANT TO ADDRESS ---------- */
 
           case S_ERROR:
             out = this.update(value, { status: S_STARTED });
@@ -594,17 +594,25 @@ export default (bottle) => {
                 // starter DOES EXIST but it is not a function - error.
                 this._status = S_ERROR;
                 const error = new Error('bad starter');
-                this.errorStream.next({ error, starter: this._starter });
+                this.stream.error({ error, starter: this._starter });
                 return Promise.reject(error);
               } else {
-                // status change;
+                // status change from starter function;
                 this.update(NOT_SET, { status: S_STARTING });
-                this._startPromise = this.update(this._starter, { status: S_STARTED });
+                this._startPromise = this.update(this._starter, { status: S_STARTED })
+                  .catch((error) => {
+                    this.startError = error;
+                    this.update(NOT_SET, { status: S_ERROR });
+                    this.stream.error({
+                      message: 'start error',
+                      error,
+                    });
+                  });
               }
 
               break;
 
-              /* ------------ THESE SHOULD NEVER BE HIT ----------- */
+            /* ------------ THESE SHOULD NEVER BE HIT ----------- */
 
             case S_STARTING:
               // REALLY should never happen - startPromise should be set now
@@ -717,6 +725,10 @@ export default (bottle) => {
           });
         }
         return this;
+      }
+
+      subscribe(...args) {
+        this.stream.subscribe(...args);
       }
     }
 
