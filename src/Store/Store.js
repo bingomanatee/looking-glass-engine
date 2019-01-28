@@ -63,7 +63,7 @@ export default (bottle) => {
         this._propsState = {};
         this._props = {};
 
-        if (state === STORE_STATE_UNSET_VALUE && starter === NOT_SET) state = {};
+        if (state === STORE_STATE_UNSET_VALUE && (!isSet(starter))) state = {};
 
         if (debug) {
           this.debugStream = new BehaviorSubject({
