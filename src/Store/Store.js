@@ -1,7 +1,6 @@
 /* eslint-disable no-unreachable */
 
 import clone from 'lodash.clonedeep';
-import lGet from 'lodash.get';
 
 import { BehaviorSubject } from 'rxjs';
 
@@ -16,9 +15,12 @@ export default (bottle) => {
     NOT_SET,
     ChangePromise,
     isPromise,
+    capFirst,
+    asValue,
+    isSet,
+    isFnName,
+    isFunction,
     isObject,
-    toError,
-    isValidPropName,
   }) => {
     /**
      * a Store is a record of a state that updates over time.
@@ -42,7 +44,7 @@ export default (bottle) => {
      *
      *   store.restart(state?);
      *
-     * Store updates and actions are designed to handle a "mixed
+     * Store updates and do are designed to handle a "mixed
      */
 
     class Store {
@@ -50,29 +52,31 @@ export default (bottle) => {
         let {
           state = STORE_STATE_UNSET_VALUE,
         } = config;
+
         const {
           starter = NOT_SET,
+          propTypes = {},
           debug = false, actions = {},
         } = config;
 
-        if (state === STORE_STATE_UNSET_VALUE && starter === NOT_SET) state = {};
+        this._propTypes = propTypes;
+        this._propsState = {};
+        this._props = {};
 
-        this.errorStream = new BehaviorSubject(false);
+        if (state === STORE_STATE_UNSET_VALUE && (!isSet(starter))) state = {};
 
-        try {
-          this.addActions(actions);
-          if (debug) {
-            this.debugStream = new BehaviorSubject({
-              source: 'constructor',
-              config,
-            });
-          }
-          this._setState(state);
-          this._starter = starter;
-          this._status = starter !== NOT_SET ? S_NEW : S_STARTED;
-        } catch (err) {
-          this.onError(err);
+        if (debug) {
+          this.debugStream = new BehaviorSubject({
+            source: 'constructor',
+            config,
+          });
         }
+
+        this.addActions(actions);
+
+        this._state = state;
+        this._starter = asValue(starter);
+        this._status = asValue(this._starter) ? S_NEW : S_STARTED;
 
         this.stream = new BehaviorSubject({
           state: this.state,
@@ -82,49 +86,145 @@ export default (bottle) => {
 
       /* ----------------- PROPERTIES --------------------- */
 
-      get status() {
-        return this._status;
-      }
-
-      get state() {
-        return this._state;
-      }
-
-      _setState(state) {
-        this._state = state;
-        this._mergeProps();
+      get actions() {
+        if (!this._actions) this._actions = {};
+        return this._actions;
       }
 
       get do() {
         return this._actions;
       }
 
-      get actions() {
-        if (!this._actions) this._actions = {};
-        return this._actions;
+      get status() {
+        return this._status;
       }
 
-      _mergeProps() {
-        const currentState = this._state;
-        if (isObject(currentState) && this._hasPendingProps()) {
-          Object.keys(this.defs).forEach((name) => {
-            const def = this.defs[name];
-            if (def.notApplied) {
-              currentState[name] = lGet(def, `${name}.start`, null);
-              def.notApplied = false;
+      /**
+       * This is a wierd thing -- acknowledged but ---
+       * status can only be set privately, but in doing so,
+       * we still want to ensure it is being set to one of a small
+       * set of values. so the private variable for _status is itself
+       * a property.
+       *
+       * @returns {Symbol}
+       * @private
+       */
+      get _status() {
+        return this.__status;
+      }
+
+      set _status(value) {
+        if (![S_STARTED, S_STARTING, S_ERROR, S_NEW, S_STOPPED].includes(value)) {
+          console.log('attempt to set status to ', value);
+          throw new Error('bad value set for _status');
+        }
+        this.__status = value;
+      }
+
+      /**
+       * As with status, _starter is a local variable, but we still
+       * want to control its input so _status is also a property with
+       * input validation.
+       *
+       * @returns {*|null}
+       * @private
+       */
+      get _starter() {
+        return this.__starter || null;
+      }
+
+      set _starter(value) {
+        if (!isSet(value)) {
+          this.__starter = null;
+          return;
+        }
+        if (!isFunction(value)) {
+          console.log('attempt to set bad value to starter:', value);
+          this.__starter = null;
+          return;
+        }
+        this.__starter = value;
+      }
+
+      /**
+       * if both _state and _propsState are objects,
+       * merges _propsState into _state and empties _propsState.
+       * @private
+       */
+      _mergePropsStateIntoState() {
+        if (isSet(this._state) && isObject(this._state)) {
+          if (this._propsState && (this._state) && (typeof this._state === 'object')) {
+            this._state = { ...this._state, ...this._propsState };
+            this._propsState = false;
+          }
+        }
+      }
+
+      /**
+       * NOTE ON STATE TYPE
+       *
+       * while this code doesn't explicitly force the type Object on state it also doesn't go
+       * out of its way to insulate against non-object states. If you put non-objects into state,
+       * happy debugging!
+       *
+       * It is better/safer in practice to put a single key object ({ value: myThing}) into state.
+       *
+       * Because there is something of a race condition between the starter completing
+       * and the state being returned, we do a quick merge between them immediately before
+       * returning state if _propsState exists and we are in S_STARTED status.
+       *
+       * yes: this is a "hack".
+       *
+       * @returns {variant}
+       */
+      get state() {
+        if (this._propsState && this.status === S_STARTED) {
+          this._mergePropsStateIntoState();
+        }
+        return this._state;
+      }
+
+      get validState() {
+        return this.validator(this.state)[0];
+      }
+
+      get stateErrors() {
+        return this.validator(this.state)[1];
+      }
+
+      get stateAndErrors() {
+        const [state, errors] = this.validator(this.state);
+        return {
+          state,
+          realState: this.state,
+          errors,
+        };
+      }
+
+      validator(state) {
+        if (state === NOT_SET || (typeof state !== 'object')) return [state];
+
+        let valid = true;
+        const errors = {};
+
+
+        Object.keys(this._props).forEach((name) => {
+          const { type, test: propTest, valueIfTestFails = NOT_SET } = this._props[name];
+          /**
+           * note - currently type is a "toothless" field to indicate the type of value
+           * a property should have - no code exists for validation.
+           */
+          if (name in state) {
+            const error = propTest(state[name]);
+            if (error) {
+              valid = false;
+              errors[name] = error;
+              if (valueIfTestFails !== NOT_SET) state[name] = valueIfTestFails;
             }
-          });
+          }
+        });
 
-          this._state = currentState;
-        }
-      }
-
-      _hasPendingProps() {
-        const values = Object.values(this.defs);
-        for (let i = 0; i < values.length; ++i) {
-          if (values[i].notApplied) return true;
-        }
-        return false;
+        return [state, (!valid) && errors];
       }
 
       /* ----------------- METHODS ------------------------ */
@@ -135,27 +235,27 @@ export default (bottle) => {
        *
        * myStore = new Store({
        *   state: {a: 4},}
-       *   actions: {
+       *   do: {
        *     addA:({state}, a) => ({...state, a: state.a + a})
        *   }
        * }
        *
-       * myStore.actions.addA(3);
+       * myStore.do.addA(3);
        * // myStore.state.a === 7;
        *
        * The signature - what parts of state are pulled into the action signature are arguable.
-       * Freactal, for instance separates the provision of state from the provision of actions.
+       * Freactal, for instance separates the provision of state from the provision of do.
        * So an action function can return ....
        *
        *  - an object (the next state), OR
-       *  - a function that takes ({actions, state}) and returns .... ^ ^ OR
+       *  - a function that takes ({do, state}) and returns .... ^ ^ OR
        *  - a Promise that returns ^ ^
        *
        *  updates keep "unwrapping" functions and promises
        *  til a non-function, non-promise is returned.
        *  note, if a function returns undefined (i.e., has no return statement), it is a "No - op";
        *  it will not change state _DIRECTLY_
-       *  but it might do so indirectly by calling other actions.
+       *  but it might do so indirectly by calling other do.
        */
 
       /**
@@ -164,7 +264,7 @@ export default (bottle) => {
        */
 
       addActions(actionsMap = {}) {
-        const actions = this.actions;
+        const actions = this._actions || {};
 
         if (actionsMap && typeof actionsMap === 'object') {
           Object.keys(actionsMap).forEach((name) => {
@@ -172,7 +272,7 @@ export default (bottle) => {
             actions[name] = this.makeAction(name, mutator);
           });
         } else {
-          this.errorStream.next({
+          this.stream.error({
             source: 'addActions',
             message: 'bad actionsMap',
             mutators: actionsMap,
@@ -182,21 +282,39 @@ export default (bottle) => {
         this._actions = actions;
       }
 
-      addAction(name, mutator) {
-        this._actions[name] = this.makeAction(name, mutator);
+      /**
+       * because addActions operates on name-value pairs if you want
+       * to specify info metadata, you must do so by passing an array
+       * with [mutator, info] in it.
+       *
+       * @param name {string}
+       * @param method {function | [function, object]}
+       * @param info {object} optional
+       * @returns {*}
+       */
+      addAction(name, method, info = {}) {
+        if (Array.isArray(method)) {
+          return this.addAction(name, ...method);
+        }
+        if (!this._actions) this._actions = {};
+        this._actions[name] = this.makeAction(name, method, info);
+        return this;
       }
 
-      /**
-       *
-       * @param name
-       * @param mutator
+      /** *
+       * returns a function that changes state.
+       * @param name {string}
+       * @param mutator {function}
+       * @param info {Object}
        * @returns {function(...[*]): ChangePromise}
        */
-      makeAction(name, mutator) {
-        if (typeof mutator !== 'function') {
+      makeAction(name, mutator, info = {}) {
+        if (!isFunction(mutator)) {
           mutator = () => mutator;
         }
-        return (...args) => this.update(() => mutator(this, ...args), { action: name || true });
+        return (...args) => this.update(() => mutator(this, ...args), {
+          ...info, action: name || true,
+        });
       }
 
       /**
@@ -215,54 +333,55 @@ export default (bottle) => {
        */
       update(change, info = NOT_SET) {
         if (!(change instanceof ChangePromise)) {
-          change = new ChangePromise(change, info);
+          change = new ChangePromise(change, isObject(info) ? info : {});
           this._log({ source: 'update', message: 'created ChangePromise', change });
         } else {
-          this._log({ source: 'update', message: 'received ChangePromise', change });
+          this._log({ source: 'update', message: 'received change', change });
         }
 
         if (change.status) {
-          return this._resolve(change);
-        }
+          // changes that include status change ALWAYS get resolved IMMEDIATELY.
+          this._resolve(change);
+        } else {
+          // changes that don't include status change get queued behind the starter,
+          // unless state is already started.
+          // No change gets processed if store is in a terminal state.
+          switch (this.status) {
+            case NOT_SET:
+              this.after('NotSet', 'status is not set');
+              this._delay(change);
+              break;
 
-        switch (this.status) {
-          case NOT_SET:
-            this.after('NotSet', 'status is not set');
-            this._delay(change);
-            break;
+            case S_STARTING:
+              this._delay(change);
+              break;
 
-          case S_STARTING:
-            if (change.status) {
-              return this._resolve(change);
-            }
-            this._delay(change);
-            break;
+            case S_STARTED:
+              this._resolve(change);
+              break;
 
-          case S_STARTED:
-            return this._resolve(change);
-            break;
+            case S_ERROR:
+              this.afterInitError({
+                source: 'update',
+                message: 'change requested of store after init error',
+                change,
+              });
+              setTimeout(() => change.reject(new Error('change requested of errored store')));
+              break;
 
-          case S_ERROR:
-            this.afterInitError({
-              source: 'update',
-              message: 'change requested of store after init error',
-              change,
-            });
-            setTimeout(() => change.reject(new Error('change requested of errored store')));
-            break;
+            case S_STOPPED:
+              this.afterStop({
+                source: 'update',
+                message: 'change requested to stopped store',
+                change,
+              });
+              setTimeout(() => change.reject(new Error('change requested of stopped store')));
+              break;
 
-          case S_STOPPED:
-            this.afterStop({
-              source: 'update',
-              message: 'change requested to stopped store',
-              change,
-            });
-            setTimeout(() => change.reject(new Error('change requested of stopped store')));
-            break;
-
-          default:
-            console.log('unknown status:', this.status);
-            change.reject(new Error(`change cannot resolve - state in unknown status ${this.status.toString()}`));
+            default:
+              console.log('unknown status:', this.status);
+              change.reject(new Error(`change cannot resolve - state in unknown status ${this.status.toString()}`));
+          }
         }
 
         return change;
@@ -282,13 +401,13 @@ export default (bottle) => {
 
             case S_ERROR:
               sub.unsubscribe();
-              change.reject(this.initializationError
+              change.reject(this.startError
                 || new Error('initialization error before change resolved'));
               break;
 
             case S_STOPPED:
               sub.unsubscribe();
-              change.reject(this.initializationError
+              change.reject(this.startError
                 || new Error('store stopped before change resolved'));
               break;
 
@@ -311,20 +430,21 @@ export default (bottle) => {
         switch (this.status) {
           case S_ERROR:
             // stop
-            change.reject(this.initializationError
+            change.reject(this.startError
               || new Error('initialization error before change resolved'));
             return change;
             break;
 
           case S_STOPPED:
-            change.reject(new Error('store stopped before change resolved'));
+            change.reject(this.startError
+              || new Error('store stopped before change resolved'));
             break;
 
           default:
           // continue;
         }
 
-        if (typeof change.value === 'function') {
+        if (isFunction(change.value)) {
           let newState;
           try {
             newState = change.value(this);
@@ -336,8 +456,11 @@ export default (bottle) => {
             });
 
             change.reject(error);
-            // this.onError?
-            this.errorStream.next({ error, change });
+            if (change.status === S_STARTED) {
+              // from the start action
+              this._status = S_ERROR;
+            }
+            this.stream.error({ error, change });
             return change;
           }
           this._log({
@@ -363,22 +486,22 @@ export default (bottle) => {
         }
 
         // -- end of the road!
-        if (change.status) {
+        if (isSet(change.status)) {
           this._log({ source: '_resolve', message: 'updating status', change });
           this._status = change.status;
         }
 
-        if (change.value !== NOT_SET && (typeof change.value !== 'undefined')) {
-          this._setState(change.value);
-        }
-        this._stateToStream();
+        if (!change.noop) this._updateState(change.value);
         this._log({ source: '_resolve', message: 'stream updated', change });
         change.resolve(change.value);
         this._log({ source: '_resolve', message: 'change resolved', change });
         return change;
       }
 
-      _stateToStream() {
+      _updateState(value) {
+        if (isSet(value)) {
+          this._state = value;
+        }
         this.stream.next({
           status: this.status,
           state: this.state,
@@ -397,13 +520,13 @@ export default (bottle) => {
         return this.after('InitError', info);
       }
 
-      after(what, info = 'tried to change') {
-        if (typeof info === 'string') {
-          return this.after(what, new Error(info));
+      after(what, error = 'tried to change') {
+        if (typeof error === 'string') {
+          return this.after(what, new Error(error));
         }
         if (!what) what = this._status.toString();
-        this.errorStream.next({ source: `after${what}`, error: info });
-        return info;
+        this.stream.error({ source: `after${what}`, error: error });
+        return error;
       }
 
       /**
@@ -463,21 +586,33 @@ export default (bottle) => {
           switch (this.status) {
             case S_NEW:
 
-              if (!this._starter) {
+              if (!isSet(this._starter)) {
+                // absent starter -- not an error.
                 this._log({ source: 'start', message: 'no starter - updating status' });
                 this._startPromise = this.update(NOT_SET, { status: S_STARTED });
+              } else if (!isFunction(this._starter)) {
+                // starter DOES EXIST but it is not a function - error.
+                this._status = S_ERROR;
+                const error = new Error('bad starter');
+                this.stream.error({ error, starter: this._starter });
+                return Promise.reject(error);
               } else {
-                if (typeof this._starter !== 'function') {
-                  this.onError('bad starter');
-                  return Promise.reject(new Error('bad starter'));
-                }
-                // synchronous status change;
-                this._resolve(new ChangePromise(NOT_SET, { status: S_STARTING }));
-                this._startPromise = this.update(this._starter, { status: S_STARTED });
+                // status change from starter function;
+                this.update(NOT_SET, { status: S_STARTING });
+                this._startPromise = this.update(this._starter, { status: S_STARTED })
+                  .catch((error) => {
+                    this.startError = error;
+                    this.update(NOT_SET, { status: S_ERROR });
+                    this.stream.error({
+                      message: 'start error',
+                      error,
+                    });
+                  });
               }
+
               break;
 
-            /* ------------ MOST OF THESE ARE NEVER GOING TO HAPPEN ----------- */
+            /* ------------ THESE SHOULD NEVER BE HIT ----------- */
 
             case S_STARTING:
               // REALLY should never happen - startPromise should be set now
@@ -497,7 +632,6 @@ export default (bottle) => {
               break;
 
             default:
-              console.log('strange status: ', this.status);
               return Promise.reject(new Error(`strange status: ${this.status.toString()}`));
           }
         }
@@ -513,17 +647,8 @@ export default (bottle) => {
        *
        * @returns {ChangePromise | Promise}
        */
-      stop(value) {
-        if (value) {
-          return this.update(value, { status: S_STOPPED });
-        }
-        this._status = S_STOPPED;
-        return Promise.resolve(this.state);
-      }
-
-      onError(message) {
-        this._status = S_ERROR;
-        this.errorStream.next(toError(message));
+      stop(value = NOT_SET) {
+        return this.update(value, { status: S_STOPPED });
       }
 
       _log(info) {
@@ -545,43 +670,70 @@ export default (bottle) => {
         }
       }
 
-      /* -------------------- PROPERTIES --------------------- */
+      /** ------------------ PROPERTY BASED DEFINITION --------------------- */
 
-      addProp(name, def = {}) {
-        if (!isValidPropName(name)) {
-          this.errorStream.next({ source: 'addProp', message: 'bad name', name });
-          return;
-        }
+      /**
+       * as an alternative to configuration based state definition you can define
+       * property based values for the store. This lets you set the default value
+       * and setter do for values in your store in a single step.
+       */
 
-        if (this.defs[name]) {
-          this.errorStream.next({
-            source: 'addProp', message: 'duplicate properties', name, def,
+      addProp(name, definition = {}) {
+        if (typeof name === 'object') {
+          Object.keys(name).forEach((key) => {
+            const def = name[key];
+            this.addProp(key, def);
           });
-          return;
+          return this;
         }
 
-        this.defs[name] = { ...def, notApplied: true };
-        // eslint-disable-next-line consistent-return
-        this.addAction(`set${name[0].toUpperCase()}${name.slice(1)}`, ({ state }, value) => {
-          if (isObject(state)) {
-            return { ...state, [name]: value };
-          }
-          this.errorStream.next({ source: name, message: `attempted to set ${name} on a non Object state`, value });
-          // return void == no change
-        });
+        const {
+          type = '*', start = null, test = () => false, valueIfTestFails = null,
+        } = definition;
 
-        if (this._mergeProps() && this.status === S_STARTED) {
-          this._publishChange();
+        let { setter = NOT_SET } = definition;
+
+        this._props[name] = {
+          type, test, valueIfTestFails,
+        };
+
+        /**
+         * if we are in STARTED status, patch the property start value into the state stream.
+         * Otherwise buffer the start values into _propsState, a "future state buffer"
+         * designed to support the condition where there is no defined state start
+         * (before starter completes).
+         */
+        switch (this.status) {
+          case S_STARTED:
+            this.update(({ state }) => ({ ...state, [name]: start }), {});
+            break;
+
+          default:
+            if (!this._propsState) this._propsState = {};
+            this._propsState[name] = start;
         }
+
+        if (!isFnName(setter)) {
+          setter = `set${capFirst(name)}`;
+        }
+
+        if (!this._actions[setter]) {
+          this.addAction(setter, ({ state }, value) => {
+            const out = { ...state };
+            out[name] = value;
+            return out;
+          });
+        }
+        return this;
       }
 
-      get defs() {
-        if (!this._defs) this._defs = {};
-        return this._defs;
+      subscribe(...args) {
+        this.stream.subscribe(...args);
       }
     }
 
-
     return Store;
   });
+
+  bottle.constant('capFirst', string => string[0].toUpperCase() + string.slice(1));
 };

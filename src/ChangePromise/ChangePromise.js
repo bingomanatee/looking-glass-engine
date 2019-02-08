@@ -1,6 +1,7 @@
+import lGet from 'lodash.get';
 
 export default (bottle) => {
-  bottle.factory('ChangePromise', ({ isPromise, NOT_SET }) => {
+  bottle.factory('ChangePromise', ({ isPromise, isSet, NOT_SET }) => {
     /**
      * note a change promise is both a token that gets seeded through the change cycle of stores
      * and a "Promise" -- it has the signature of a promise and behaves like one.
@@ -36,10 +37,12 @@ export default (bottle) => {
         return this._resolved;
       }
 
-      get status() {
-        if (!this.info) return NOT_SET;
+      get noop() {
+        return lGet(this, 'info.noop', false);
+      }
 
-        return this.info.status || NOT_SET;
+      get status() {
+        return lGet(this, 'info.status', NOT_SET);
       }
 
       /**
