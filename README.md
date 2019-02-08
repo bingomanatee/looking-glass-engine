@@ -532,3 +532,7 @@ export default class UserDisplay extends React.PureComponent {
 
 ```
 
+
+This is David Edelhart
+February 8 2019
+Please let me in
