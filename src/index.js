@@ -1,33 +1,26 @@
-import bottle from './bottle';
+import { ABSENT } from './absent';
+import validators from './validators';
+import ValueStream from './ValueStream';
+import ValueStore from './ValueStore';
+import ValueStoreMap from './ValueStoreMap';
+import ValueStoreObject from './ValueStoreObject';
+import Change from './Change';
+import {
+  STAGE_PERFORM, STAGE_PENDING, STAGE_COMPLETE, STAGE_BEGIN, STAGE_PROCESS, ACTION_NEXT,
+} from './constants';
 
-
-const {
-  Store, StoreMap, update, mergeIntoState,
-  STORE_STATE_UNSET_VALUE
-  , S_NEW
-  , S_STARTED
-  , S_STARTING
-  , S_ERROR
-  , ACTION_ERROR
-  , ACTION_START
-  , ACTION_NOOP
-  , ACTION_COMPLETE
-  , NOT_SET,
-} = bottle().container;
-
-export {
-  STORE_STATE_UNSET_VALUE
-  , S_NEW
-  , S_STARTED
-  , S_STARTING
-  , S_ERROR
-  , ACTION_ERROR
-  , ACTION_START
-  , ACTION_NOOP
-  , ACTION_COMPLETE
-  , NOT_SET,
-  Store,
-  StoreMap,
-  update,
-  mergeIntoState,
+export default {
+  STAGE_PERFORM,
+  STAGE_PENDING,
+  STAGE_COMPLETE,
+  STAGE_BEGIN,
+  STAGE_PROCESS,
+  ACTION_NEXT,
+  validators,
+  ValueStream,
+  ValueStore,
+  ValueStoreMap,
+  ValueStoreObject,
+  ABSENT,
+  Change,
 };

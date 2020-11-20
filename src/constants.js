@@ -1,16 +1,15 @@
+export const ACTION_POP = ('pop');// do any preparation necessary before changing the value;
+export const STAGE_BEGIN = ('initial');
+export const STAGE_PROCESS = ('process');
+export const STAGE_PERFORM = ('perform');
+// filter and clean up any issues with data sanity; make objects unique
+export const STAGE_PENDING = ('pending');
+// note any non-terminal error conditions
+// error out if any terminal conditiona
+export const STAGE_COMPLETE = ('complete');
 
-
-export default (bottle) => {
-  bottle.constant('STORE_STATE_UNSET_VALUE', Symbol('STORE_STATE_UNSET_VALUE'));
-  bottle.constant('S_NEW', Symbol('S_NEW'));
-  bottle.constant('S_STARTED', Symbol('S_STARTED'));
-  bottle.constant('S_STOPPED', Symbol('S_STOPPED'));
-  bottle.constant('S_STARTING', Symbol('S_STARTING'));
-  bottle.constant('S_ERROR', Symbol('S_ERROR'));
-  bottle.constant('ACTION_ERROR', Symbol('ACTION_ERROR'));
-  bottle.constant('ACTION_START', Symbol('ACTION_START'));
-  bottle.constant('ACTION_WORKING', Symbol('ACTION_WORKING'));
-  bottle.constant('ACTION_NOOP', Symbol('ACTION_NOOP'));
-  bottle.constant('ACTION_COMPLETE', Symbol('ACTION_COMPLETE'));
-  bottle.constant('NOT_SET', Symbol('NOT_SET'));
-};
+export const ACTION_NEXT = ('next');
+export const ACTION_KEY_VALUE_SET = ('map set');
+export const ACTION_ARRAY_SPLICE = ('splice');
+export const ACTION_ARRAY_REMOVE = ('array remove');
+export const ACTION_ARRAY_ADD = ('array add');
