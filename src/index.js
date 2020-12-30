@@ -1,26 +1,21 @@
-import { ABSENT } from './absent';
-import validators from './validators';
+import { enableMapSet } from 'immer';
 import ValueStream from './ValueStream';
-import ValueStore from './ValueStore';
-import ValueStoreMap from './ValueStoreMap';
-import ValueStoreObject from './ValueStoreObject';
-import Change from './Change';
-import {
-  STAGE_PERFORM, STAGE_PENDING, STAGE_COMPLETE, STAGE_BEGIN, STAGE_PROCESS, ACTION_NEXT,
-} from './constants';
+import ValueMapStream from './ValueMapStream';
+import Event, { EventFilter } from './Event';
+import setProxy from './setProxy';
+import * as constants from './constants';
+import addTrans from './addTrans';
+import addActions from './addActions';
+
+enableMapSet();
 
 export default {
-  STAGE_PERFORM,
-  STAGE_PENDING,
-  STAGE_COMPLETE,
-  STAGE_BEGIN,
-  STAGE_PROCESS,
-  ACTION_NEXT,
-  validators,
+  ...constants,
+  addActions,
+  Event,
+  EventFilter,
   ValueStream,
-  ValueStore,
-  ValueStoreMap,
-  ValueStoreObject,
-  ABSENT,
-  Change,
+  ValueMapStream,
+  setProxy,
+  addTrans,
 };

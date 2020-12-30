@@ -45,3 +45,7 @@ various economies to reduce bundle size and bookkeeping tasks
 * removed unused packages 
 * migrated code back to github repo https://github.com/bingomanatee/looking-glass-engine
 * updated README to reflect current API
+
+# 3.4
+
+another architecture rethink; cleaner events. 
