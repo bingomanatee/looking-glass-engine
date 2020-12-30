@@ -166,17 +166,19 @@ export default class ValueStream {
   send(action, value, stages) {
     const actionStages = stages || this._eventTree.get(action) || this._eventTree.get(A_ANY);
     const onError = this._errorStream.next.bind(this._errorStream);
-    const subject = new BehaviorSubject(value);
-    subject.subscribe({ error: onError });
-    combineLatest(of(action), of(subject), fromEffect(actionStages))
-      // eslint-disable-next-line no-unused-vars
+    const event = new Event(action, new BehaviorSubject(value), actionStages[0]);
+    event.subscribe({ error: onError });
+    fromEffect(actionStages)
       .pipe(
         // eslint-disable-next-line no-unused-vars
-        filter(([_, stream]) => !stream.isStopped),
-        map((args) => new Event(...args)),
+        map((stage) => {
+          event.stage = stage;
+          return event;
+        }),
+        filter((ev) => !ev.isStopped),
       )
       .subscribe({
-        next: this._eventStream.next.bind(this._eventStream),
+        next: (ev) => this._eventStream.next(ev),
       });
   }
 

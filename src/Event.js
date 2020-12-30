@@ -46,7 +46,7 @@ export default class Event {
   }
 
   get isStopped() {
-    return this.valueStream.isStopped
+    return this.valueStream.isStopped;
   }
 
   next(value) {
