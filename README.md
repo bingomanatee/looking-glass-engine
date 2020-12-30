@@ -7,7 +7,9 @@ LGE 3.4 is a complete rebuild and redesign with its own API / interface.
 Here are the primary values of LGE Streams:
 
 * They are **synchronous** - changes input into a stream is immediately reflected in its 
-  value property (or ejected out as errors) 
+  value property (or ejected out as errors). This means that all the hooks 
+  (filter, finalize, etc.) are also synchronous. If you want to do async behavior
+  either encase it in an action or perform it outside the valueStream.
 * They are **interruptable** - you can write filters or finalize hooks to block bad data
   or create side effects to data being update. 
 * They are interoperable with the powerful **[rxjs](https://rxjs.dev/guide/overview)** 
@@ -39,11 +41,11 @@ via stream.next(value).
 ## subject interface methods
 
 * `next(value)` - sends a new value to any subscribers
-* `subscribe(next, error, done)` or `(subscribe({next, error, done))`
+* `subscribe(next, error, done)` or `(subscribe({next, error, done))` -- receives updates from value changes.
 * `pipe(...rxjs operators)` - returns a modified subject. note-- the pipe operators
   won't apply to any subscribers to the original stream, only those to the modified subject. 
-  It's based on the `valueSubject` property - an internal BehaviorSubject that stores the ValueStream's value
-* `complete()`
+  It's pipes the internal `valueSubject` property - a BehaviorSubject that stores the ValueStream's value.
+* `complete()` -- prevents further change and emission of messages from the stream
 *` error(err)` -- will *not* terminate the ValueStream. 
 
 ### method: filter(fn) 
@@ -55,17 +57,45 @@ the update and retain the current value of the stream.
 its best used to either sanitize updates (trim strings, remove empty values from arrays)
 or to prevent bad data from being admitted to the stream's value by throwing errors. 
 
+```javascript
+
+const abs = (n, stream) => {
+    if (typeof n !== 'number') throw new Error(`${n} must be a number`);
+    return Math.abs(n);
+};
+
+const filtered = new ValueStream(3).filter(abs);
+
+```
+
 ## finalize((event, stream)) 
 
 finalize takes a function that accepts an Event - a Subject that has a value 
 that will be committed; it listens after finalize (and almost all other stages in the 
 next sequence). 
 unlike filter, the function's output is not meaningful.
+
  * to change the next value of the stream, send a new value to event.next(). 
  * To abort the update, call event.error(err). 
 
 note - finalize is a good way to make streams immutable; you can use immer to 
 wrap the content, or wrap it in an immutable.js Record or List. 
+
+```javascript
+import {produce} from 'immer';
+
+ const listStream = new ValueStream(produce([], () => {}), {
+        finalize: (event, target) => {
+          event.next(produce(target.value, (list) => {
+            if (Array.isArray(event.value)) {
+              return event.value;
+            }
+            list.push(event.value);
+          }));
+        },
+      });
+
+```
  
 ## ValueMapStream
 
@@ -73,27 +103,28 @@ ValueMapStreams are class descendants from ValueStreams.
 They manage an internal javascript Map. It will accept an object value in its 
 constructor, but it will translate that object into a Map. 
 
-## method set(key, value) or set(Map)
+## method `set(key, value) or set(Map)`
 
 sets a single field, or several fields at once; merges the new values into 
 the current ValueMapStream's Map value. 
 
-## method onField((event<Subject>, stream) => {...}, name) or ((event<subject>, stream) => {...}, [names]))
+## method` onField((event<Subject>, stream) => {...}, name) or ((event<subject>, stream) => {...}, [names]))`
 
 onField takes a function that accepts an Event - a Subject that has a value (Map) input into the set method. 
 unlike filter, the output is not meaningful.
+
  * to change the fields, send a new map (or the same map, altered) to event.next(). 
  * To abort the event, call event.error(err). 
  
 onField hooks will not respond to valueMapStream.next(map) wholesale updating of the map; 
  if you want to use onField filters, avoid using .next(map). 
  
-## property my
+## property `my`
 
 my is an objectified version of the value; its a proxy to value (where proxies are available)
 that allows dot-access to the current maps value; useful for deconstruction or injection to React components. 
 
-# actions
+# Adding actions to a stream.
 
 passing a ValueStream or ValueMapStream instance through addActions will
 add a series of user defined actions to the streams' `do` property. Wrapping a ValueMapStream with 
@@ -101,6 +132,9 @@ addActions will also add set hooks to do; for instance if you have a key 'commen
 `myStream.do.setComment(string)` is the equivalent of `myStream.set('comment', string`.
 
 The first argument into the method is always a reference to the stream itself. 
+
+The reason that streams don't come with actions inherent is that streams can be nested,
+and its better to add the overhead of actions on a case by case basis.
 
 ## addActions(stream, {actions})
 
