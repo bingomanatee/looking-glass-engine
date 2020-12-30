@@ -1,6 +1,6 @@
 {
   "name": "@wonderlandlabs/looking-glass-engine",
-  "version": "3.4.2",
+  "version": "3.4.3",
   "description": "A streaming state management system",
   "main": "lib/index.js",
   "module": "es/index.js",
