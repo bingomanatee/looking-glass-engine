@@ -10,24 +10,24 @@ Here are the primary values of LGE Streams:
   value property (or ejected out as errors). This means that all the hooks 
   (filter, finalize, etc.) are also synchronous. If you want to do async behavior
   either encase it in an action or perform it outside the valueStream.
-* They are **interruptable** - you can write filters or finalize hooks to block bad data
+* They are **interrupt-able** - you can write filters or finalize hooks to block bad data
   or create side effects to data being update. 
 * They are interoperable with the powerful **[rxjs](https://rxjs.dev/guide/overview)** 
   streaming API to control or augment broadcasting of updates. 
-* they can be decorated with actions to provide custom interactions with data
+* they can be decorated with **actions** to provide custom interactions with data
   
 # Components
 
 ## ValueStream
 
-A ValueStream is a curated observable that translates an update request (from next(value)). 
-It is a wrapper for an internal BehaviorSubject, and as such, it has the affordances
-of a subject -- subscribe, value/getValue(), pipe, error, and complete. 
+A ValueStream is a curated single-value observable that translates an update request (from next(value)). 
+It is a wrapper for an internal [BehaviorSubject](https://www.learnrxjs.io/learn-rxjs/subjects/behaviorsubject), 
+and as such, it has the affordancesof a subject -- `subscribe`, `value`, `pipe`, `error`, and `complete`. 
 
 ValueStreams have an independent error stream - for the most part, errors that happen
-internally or that are thrown by the event system are routed towards that. Unlike most 
-subjects, ValueStreams persist even if errors are thrown in their processes, 
-as those errors are diverted to a seperate subject. 
+internally or that are thrown by the event system are expressed from that stream. 
+Unlike most subjects, ValueStreams persist even if errors occur, 
+as those errors route a separate subject. 
 
 ## constructor(value, {name, filter, finalize}) 
 
@@ -57,6 +57,9 @@ the update and retain the current value of the stream.
 its best used to either sanitize updates (trim strings, remove empty values from arrays)
 or to prevent bad data from being admitted to the stream's value by throwing errors. 
 
+If the function doesn't throw it must return a value - either the first parameter or a 
+sanitized version of it. 
+
 ```javascript
 
 const abs = (n, stream) => {
@@ -70,10 +73,12 @@ const filtered = new ValueStream(3).filter(abs);
 
 ## finalize((event, stream)) 
 
-finalize takes a function that accepts an Event - a Subject that has a value 
-that will be committed; it listens after finalize (and almost all other stages in the 
-next sequence). 
-unlike filter, the function's output is not meaningful.
+finalize takes a function that accepts an Event - a Subject with a value 
+that will be committed; it listens after finalize 
+(and almost all other stages in the next sequence). The second argument is the
+ValueStream itself, useful if you want to check the current value of the stream.
+
+Unlike filter, the function's output is not meaningful.
 
  * to change the next value of the stream, send a new value to event.next(). 
  * To abort the update, call event.error(err). 
@@ -99,19 +104,34 @@ import {produce} from 'immer';
  
 ## ValueMapStream
 
-ValueMapStreams are class descendants from ValueStreams. 
-They manage an internal javascript Map. It will accept an object value in its 
+ValueMapStreams extends ValueStreams, and has the same constructor profile.
+They manage an internal javascript Map. A ValueMapStream will accept an object value in its 
 constructor, but it will translate that object into a Map. 
+
+**A note on "Map Integrity"/new keys **
+
+ValueMapStream is designed with the idea of a "fixed map" in which keys are not
+created or deleted. That being said, there are also no code guards put in place 
+to *prevent* you from adding new keys to the map. 
+
+`set[newField](value)` actions will not *necessarily* be available for fields un-defined
+at the streams' creation, but the `myStream.set(newKey, newValue)` will work and 
+emit events as normal.
+
+In any event there's no harm in initializing any needed fields in the constructor even if
+you do so with an undefined value, so that the setField actions can be made 
+available. 
 
 ## method `set(key, value) or set(Map)`
 
 sets a single field, or several fields at once; merges the new values into 
 the current ValueMapStream's Map value. 
 
-## method` onField((event<Subject>, stream) => {...}, name) or ((event<subject>, stream) => {...}, [names]))`
+## method` onField((event<Subject>, stream) => {...}, name, stage = E_PRECOMMIT) or ((event<subject>, stream) => {...}, [names]), stage)`
 
-onField takes a function that accepts an Event - a Subject that has a value (Map) input into the set method. 
-unlike filter, the output is not meaningful.
+onField listens for events in which a field is updated (set). 
+
+onField takes a function that accepts an Event. unlike filter, the output is not meaningful.
 
  * to change the fields, send a new map (or the same map, altered) to event.next(). 
  * To abort the event, call event.error(err). 
@@ -174,58 +194,14 @@ test.same(stream.do.magnitude(), 13);
 
 ```
 
-# Advanced Architecture: stages and events
-
-While you don't have to understand the event structure inside of a ValueStream/ValueMapStream to use streams, 
-you might find it helpful if you want to create intercept driven stores a la Saga.
-
-`set` and `next` are both executed in a series of stages. An Event is emitted for each stage,
-containing the value (or map in the case of set) in a temporary stream. 
-
-## default stages
-
-Unless modified the following stages happen for each update:
-
-*  `next`: `[E_INITIAL, E_FILTER, E_VALIDATE, E_PRECOMMIT, E_COMMIT, E_COMPLETE]]`
-* `set`: `[E_INITIAL, E_RESTRICT, E_FILTER, E_VALIDATE, E_PRECOMMIT, E_COMMIT, E_COMPLETE]`
-* (default):  `[E_INITIAL, E_COMMIT, E_COMPLETE]]`
-
-the filter hook acts in the `E_FILTER` stage; finalize occurs in the `E_PRECOMMIT` stage. 
-The streams' value is updated in the `E_COMMIT` phase of the next sequence. 
-
-## Events
-
-Events are wrappers for a value, stored in the valueSubject property (a BehaviorSubject)
-but exposed through event.value. Events are more or less subjects - they can be 
-subscribed to, stopped with an error(err) that will emit through the stream;
-and complete() will suspend their operation silently. note - complete() and error()
-will prevent subsequent stages - but not subsequent stages for the current hook. 
-If you are concerned, check the `event.isStopped` property inside your hooks first. 
-
-## method on(hook, onAction = A_NEXT, onStage = E_FILTER, onValue)
-
-`on(...)` allows you to intercept events for a particular action and/or stage. you can
-also pass a function for any of these parameters to return a true/false value when passed
-an action, stage or value; only when all functional parameters return true will the hook
-be applied. 
-
-## method when(hook, EventFilter) 
-
-You can define which triggers a hook responds to in an EventFilter; check the source
-for examples of useful EventFilters. 
-
-## method setStages(action, [...stages])
-
-within a stage hooks execute in order of creation. If you want 
-more control over what is executed when, feel free to add extra stages to your stream
-to ensure hooks perform in the order you want. 
 
 # Interoperating with React
 
-There's more than one way to do this. The primary concern is is the valueStream/ValueMapStream
-bound to a particular component or is it shared amongst multiple components?
+There's more than one way to do this. The primary concern is whether
+the ValueStream/ValueMapStream is bound to a particular component (Localized)
+or shared amongst multiple components. 
 
-## localize to a view
+## Localize to a view
 
 You can create a store and keep it within state hooks:
 
@@ -236,7 +212,7 @@ const ViewWithStore = (props) => {
 const [store, setStore] = useState(null);
 const [value, setValue] = useState(new Map());
 
-useEffect(() ={
+useEffect(() => {
 
 const mewStore = new addAction(ValueStore({x: 0, y: 0}),
     {
@@ -267,20 +243,23 @@ Or, in a class-based component,
 
 ```javascript
 
-const MyClass extends Component {
+class MyClass extends Component {
 
   constructor( props) {
     super(props);
-    this._store = new ValueStore({x: 0, y: 0});
+    this._store = new ValueMapStore({x: 0, y: 0});
    this.state = this._store.value;
 }
 
   componentDidMount() {
-    this._sub = this._store.subscribe(this.setState.bind(this));  
-}
+    this._sub = this._store.subscribe((map) => {
+      this.setState(new Map(map))
+    });  
+  }
+
   componentWillUnmount() {
-  if (this._sub) this._sub.unsubscribe();
-}
+    if (this._sub) this._sub.unsubscribe();
+  }
 // ....
 }
 
@@ -288,3 +267,6 @@ const MyClass extends Component {
 
 Global stores can be provided in context, or simply linked as a module when needed and 
 subscribed to as above. 
+
+If you want to get familiar with interrupt and eventing
+in LGE, review the [ADVANCED_README](/ADVANCED_README.md)

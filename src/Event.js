@@ -32,6 +32,16 @@ export default class Event {
     this.valueStream = valueStream;
     this.stage = stage;
     this.target = target;
+    this.completed = [];
+  }
+
+  set stage(v) {
+    if (this.stage) this.completed.push(this.stage);
+    this._stage = v;
+  }
+
+  get stage() {
+    return this._stage;
   }
 
   get value() {

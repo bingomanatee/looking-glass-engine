@@ -35,14 +35,6 @@ const actionProxy = (stream) => new Proxy(stream, {
       }
     }
 
-    if (target.send) {
-      return (...args) => {
-        target.send(A_ACTION, {
-          name,
-          args,
-        });
-      };
-    }
     throw e(`no action ${name}`, target);
   },
 });

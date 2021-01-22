@@ -10,10 +10,11 @@
   },
   "rules": {
     "max-len": [2, { "code": 120 }],
-    "no-param-reassign": "warn",
+    "no-void": 0,
     "react/jsx-filename-extension": 0,
     "react/no-array-index-key": 1,
     "class-methods-use-this": 0,
+    "no-unused-vars": 1,
     "no-underscore-dangle": 0,
     "jsx-a11y/no-static-element-interactions": 0,
     "import/no-named-as-default": 0,

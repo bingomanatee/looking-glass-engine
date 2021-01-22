@@ -179,6 +179,11 @@ export default class ValueStream {
       )
       .subscribe({
         next: (ev) => this._eventStream.next(ev),
+        complete() {
+          if (!event.isStopped) {
+            event.complete();
+          }
+        },
       });
   }
 

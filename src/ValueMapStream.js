@@ -72,11 +72,12 @@ const mergeNext = (event, target) => {
 };
 
 export default class ValueMapStream extends ValueStream {
-  constructor(value, options, ...args) {
-    super(toMap(value), options, ...args);
+  constructor(value, options) {
+    super(toMap(value), options);
     this.fieldSubjects = new Map();
     this.setStages(A_NEXT, mapNextEvents);
     this.setStages(A_SET, setEvents);
+
     if (lGet(options, 'noNewKeys')) {
       this.when(onlyOldKeys, onRestrictKeyForSet);
     }
@@ -124,6 +125,20 @@ export default class ValueMapStream extends ValueStream {
       return this;
     }
     return this.send(A_SET, new Map([[key, value]]));
+  }
+
+  addFieldSubject(key, stream) {
+    if (!this.fieldSubjects.has(key)) {
+      this.fieldSubjects.set(stream);
+      const sub = stream.subscribe((value) => this.set(key, value, true));
+      this.subscribe({
+        complete() {
+          sub.unsubscribe();
+        },
+      });
+    } else {
+      throw e(`cannot redefine field subject ${key}`, { key, stream, target: this });
+    }
   }
 
   get(key) {
