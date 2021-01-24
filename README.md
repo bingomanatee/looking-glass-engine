@@ -132,17 +132,28 @@ the current ValueMapStream's Map value.
 onField listens for events in which a field is updated (set). 
 
 onField takes a function that accepts an Event. unlike filter, the output is not meaningful.
+See the [Advanced Readme](/ADVANCED_README.md) for details on the Event class.
 
  * to change the fields, send a new map (or the same map, altered) to event.next(). 
- * To abort the event, call event.error(err). 
+ * To abort the event, call event.error(err).
+ * To abort the update without emitting errors, call event.complete();
  
 onField hooks will not respond to valueMapStream.next(map) wholesale updating of the map; 
  if you want to use onField filters, avoid using .next(map). 
  
+## method `watch(field, field..., (isEqual: fn?)) or watch([field1, field2...]): Subject`
+ 
+returns a subject which emits when a particular field or fields are updated. 
+By default it compares field for field via lodash.`isEqual`. If you want to use another comparator
+(as an argument to `rxjs.distinctUntilChanged`) pass the comparator as the last function. 
+
+The output of this method is a subject which can be `subscribe`'d to; you can save the output and 
+`.unsubscribe()` if you want to cancel the effects of the subscription. 
+ 
 ## property `my`
 
 my is an objectified version of the value; its a proxy to value (where proxies are available)
-that allows dot-access to the current maps value; useful for deconstruction or injection to React components. 
+that allows dot-access to the current maps value; useful for deconstruction or injection to React components.
 
 # Adding actions to a stream.
 

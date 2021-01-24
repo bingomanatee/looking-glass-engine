@@ -15,7 +15,6 @@ const initial = Object.freeze(
   ]),
 );
 
-
 tap.test(p.name, (suite) => {
   suite.test('ValueMapStream', (testVS) => {
     testVS.test('constructor', (testVSc) => {
@@ -155,7 +154,6 @@ tap.test(p.name, (suite) => {
       ]);
       afsTest.same(history, [e1, e2, e2y1, e3]);
 
-
       coord.set('y', 3);
       coord.set('x', 6);
       afsTest.same(errors, [
@@ -166,6 +164,64 @@ tap.test(p.name, (suite) => {
       afsTest.same(history, [e1, e2, e2y1, e3, e4, e4x6]);
 
       afsTest.end();
+    });
+
+    testVS.test('watch', (wTest) => {
+      const coord = new ValueMapStream({
+        x: 0,
+        y: 0,
+        z: 0,
+      });
+
+      const errors = [];
+      const history = [];
+
+      coord.watch('x', 'y')
+        .subscribe({
+          next: history.push.bind(history),
+          error: errors.push.bind(errors),
+        });
+
+      coord.set(new Map([['z', 1]]));
+
+      const startMap = new Map([
+        ['x', 0],
+        ['y', 0],
+      ]);
+      const nextMap = new Map([
+        ['x', 1],
+        ['y', 0],
+      ]);
+      const thirdMap = new Map([
+        ['x', 1],
+        ['y', 3],
+      ]);
+      wTest.same(history, [
+        startMap,
+      ]);
+
+      coord.set(new Map([['x', 1]]));
+
+      wTest.same(history, [
+        startMap,
+        nextMap,
+      ]);
+
+      coord.set(new Map([['z', 2]]));
+
+      wTest.same(history, [
+        startMap,
+        nextMap,
+      ]);
+
+      coord.set(new Map([['y', 3]]));
+
+      wTest.same(history, [
+        startMap,
+        nextMap,
+        thirdMap,
+      ]);
+      wTest.end();
     });
 
     testVS.end();

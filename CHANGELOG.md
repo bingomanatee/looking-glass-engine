@@ -53,3 +53,7 @@ another architecture rethink; cleaner events.
 # 3.4.4
 
 removed default action handling to avoid false positives for non-existant actions
+
+# 3.4.5 
+
+added (back) watch. 

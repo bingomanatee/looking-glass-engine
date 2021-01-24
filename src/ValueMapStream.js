@@ -1,9 +1,7 @@
-import { catchError, filter, switchMap } from 'rxjs/operators';
-import {
-  Subject, BehaviorSubject, from, of as ofStream,
-} from 'rxjs';
-import intersection from 'lodash/intersection';
+import { distinctUntilChanged, map } from 'rxjs/operators';
 import lGet from 'lodash/get';
+import isEqual from 'lodash/isEqual';
+import flattenDeep from 'lodash/flattenDeep';
 import ValueStream from './ValueStream';
 import {
   setEvents,
@@ -11,6 +9,32 @@ import {
   mapNextEvents, E_MAP_MERGE, toMap, e, Å, E_RESTRICT,
 } from './constants';
 import { EventFilter } from './Event';
+
+const kas = (aMap) => {
+  try {
+    return Array.from(aMap.keys()).sort().join(',');
+  } catch {
+    return null;
+  }
+};
+
+const compareMaps = (map1, map2) => {
+  if (!((map1 instanceof Map) && (map2 instanceof Map))) {
+    return false;
+  }
+  if (map1.size !== map2.size) return false;
+  if (!map1.size) return true;
+  const key1 = kas(map1);
+  const key2 = kas(map2);
+  if (!((key1 && key2) && (key1 === key2))) return false;
+
+  let same = true;
+  map1.forEach((value, field) => {
+    if (!same) return;
+    same = isEqual(value, map2.get(field));
+  });
+  return same;
+};
 
 const onInitialNext = new EventFilter({
   action: A_NEXT,
@@ -176,5 +200,22 @@ export default class ValueMapStream extends ValueStream {
       return this._myProxy;
     }
     return this.object;
+  }
+
+  watch(...args) {
+    const fields = flattenDeep(args);
+    const filter = typeof fields[fields.length - 1] === 'function' ? fields.pop() : null;
+    return this.pipe(
+      map((next) => {
+        const newMap = new Map();
+        fields.forEach((field) => {
+          if (next.has(field)) {
+            newMap.set(field, next.get(field));
+          }
+        });
+        return newMap;
+      }),
+      distinctUntilChanged(filter || compareMaps),
+    );
   }
 }
