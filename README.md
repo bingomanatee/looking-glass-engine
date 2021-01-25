@@ -147,8 +147,14 @@ returns a subject which emits when a particular field or fields are updated.
 By default it compares field for field via lodash.`isEqual`. If you want to use another comparator
 (as an argument to `rxjs.distinctUntilChanged`) pass the comparator as the last function. 
 
-The output of this method is a subject which can be `subscribe`'d to; you can save the output and 
-`.unsubscribe()` if you want to cancel the effects of the subscription. 
+The output of this method is a subject which can be `subscribe`'d to; 
+you can save the output and `.unsubscribe()` if you want to cancel the effects of the subscription. 
+
+### A note on sequencing
+
+Watch observers wait for any "next" events to complete before emitting change. This means
+that watch will be notified after any subscriptions to the root object and after any "next"
+event observers. 
  
 ## property `my`
 

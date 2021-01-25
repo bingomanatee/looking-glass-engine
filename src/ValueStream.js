@@ -1,5 +1,5 @@
 import {
-  BehaviorSubject, from as fromEffect, Subject, of, combineLatest, Observable,
+  BehaviorSubject, from as fromEffect, Subject, from,
 } from 'rxjs';
 import isEqual from 'lodash/isEqual';
 import {
@@ -166,7 +166,7 @@ export default class ValueStream {
   send(action, value, stages) {
     const actionStages = stages || this._eventTree.get(action) || this._eventTree.get(A_ANY);
     const onError = this._errorStream.next.bind(this._errorStream);
-    const event = new Event(action, new BehaviorSubject(value), actionStages[0]);
+    const event = new Event(action, new BehaviorSubject(value), actionStages[0], this);
     event.subscribe({ error: onError });
     fromEffect(actionStages)
       .pipe(

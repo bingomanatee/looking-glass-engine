@@ -19,6 +19,20 @@ which events you want to allow. For instance if you want to ensure that only
 known fields are in a ValueMapStream you can either remove unwanted values 
 or reject events that update unwanted values.
 
+## *WARNING*: calling set/next from set/next watchers on ValueMapSet
+
+If you try to update a stream as a response to "set" or "next" watchers, you can generate
+race conditions. Your "set" will generate a manifest map from the previous edition of the 
+ValueMapStream that evaluates after the triggering event. 
+
+To properly set a store in response to data change, wait for the event to complete
+before setting additional field values. The best way to do this is to use `.watch(...)`
+listeners, which perform in this matter automatically. 
+
+Alternately you can update the value of the event to include desired side effects in a single
+manifest, by using `event.next(updatedMap)` to include side-effects in a single transaction;
+note, this will side-step event observers. 
+
 ## default stages
 
 Unless modified the following stages happen for each update:

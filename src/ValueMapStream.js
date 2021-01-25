@@ -2,6 +2,7 @@ import { distinctUntilChanged, map } from 'rxjs/operators';
 import lGet from 'lodash/get';
 import isEqual from 'lodash/isEqual';
 import flattenDeep from 'lodash/flattenDeep';
+import { BehaviorSubject } from 'rxjs';
 import ValueStream from './ValueStream';
 import {
   setEvents,
@@ -153,7 +154,7 @@ export default class ValueMapStream extends ValueStream {
 
   addFieldSubject(key, stream) {
     if (!this.fieldSubjects.has(key)) {
-      this.fieldSubjects.set(stream);
+      this.fieldSubjects.set(key, stream);
       const sub = stream.subscribe((value) => this.set(key, value, true));
       this.subscribe({
         complete() {
@@ -205,7 +206,19 @@ export default class ValueMapStream extends ValueStream {
   watch(...args) {
     const fields = flattenDeep(args);
     const filter = typeof fields[fields.length - 1] === 'function' ? fields.pop() : null;
-    return this.pipe(
+    const initial = new Map();
+    fields.forEach((field) => {
+      if (this.value.has(field)) initial.set(field, this.value.get(field));
+    });
+    const receiver = new BehaviorSubject(initial);
+    this.on((event) => {
+      event.subscribe({
+        complete: () => {
+          receiver.next(event.target.value);
+        },
+      });
+    }, A_NEXT, E_COMMIT);
+    return receiver.pipe(
       map((next) => {
         const newMap = new Map();
         fields.forEach((field) => {

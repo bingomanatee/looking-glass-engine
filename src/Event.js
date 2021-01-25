@@ -9,6 +9,7 @@ export default class Event {
    * @param action {any}
    * @param valueStream {any}
    * @param stage {any}
+   * @param target {any}
    */
   constructor(action, valueStream, stage, target) {
     this[immerable] = true; // Option 2
@@ -17,6 +18,7 @@ export default class Event {
     } else {
       this._initArgs(action, valueStream, stage, target);
     }
+    this.target = target;
   }
 
   _initParams({

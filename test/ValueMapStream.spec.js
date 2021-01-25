@@ -224,6 +224,83 @@ tap.test(p.name, (suite) => {
       wTest.end();
     });
 
+    testVS.test('watch - sequential', (wTest) => {
+      const coord = new ValueMapStream({
+        x: 0,
+        error: '',
+      });
+
+      const errors = [];
+      const history = [];
+
+      coord
+        .subscribe({
+          next: history.push.bind(history),
+          error: errors.push.bind(errors),
+        });
+
+      coord.watch('x')
+        .subscribe((value) => {
+          if (value.get('x') % 2) {
+            coord.set('error', 'x must be even');
+          } else {
+            coord.set('error', '');
+          }
+        });
+
+      const startMap = new Map([
+        ['x', 0],
+        ['error', ''],
+      ]);
+      const nextMapPre = new Map([
+        ['x', 1],
+        ['error', ''],
+      ]);
+      const nextMap = new Map([
+        ['x', 1],
+        ['error', 'x must be even'],
+      ]);
+      const thirdMapPre = new Map([
+        ['x', 2],
+        ['error', 'x must be even'],
+      ]);
+      const thirdMap = new Map([
+        ['x', 2],
+        ['error', ''],
+      ]);
+      const fourthMap = new Map([
+        ['x', 3],
+        ['error', 'x must be even'],
+      ]);
+
+      wTest.same(history, [
+        startMap,
+        startMap,
+      ]);
+
+      coord.set(new Map([['x', 1]]));
+
+      wTest.same(history, [
+        startMap,
+        startMap,
+        nextMapPre,
+        nextMap,
+      ]);
+
+      coord.set(new Map([['x', 2]]));
+
+      wTest.same(history, [
+        startMap,
+        startMap,
+        nextMapPre,
+        nextMap,
+        thirdMapPre,
+        thirdMap,
+      ]);
+
+      wTest.end();
+    });
+
     testVS.end();
   });
 
