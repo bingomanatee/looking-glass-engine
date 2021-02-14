@@ -49,7 +49,8 @@ tap.test(p.name, (suite) => {
       };
 
       testVSFilter.test('update value', (updateValue) => {
-        const filtered = new ValueStream(3).filter(abs);
+        const filtered = new ValueStream(3);
+        filtered.filter(abs);
 
         filtered.next(4);
         updateValue.same(filtered.value, 4);
@@ -63,7 +64,8 @@ tap.test(p.name, (suite) => {
       });
 
       testVSFilter.test('throw', (filterThrow) => {
-        const filtered = new ValueStream(3).filter(abs);
+        const filtered = new ValueStream(3);
+        filtered.filter(abs);
 
         filtered.next(4);
         filterThrow.same(filtered.value, 4);
@@ -78,7 +80,8 @@ tap.test(p.name, (suite) => {
       });
 
       testVSFilter.test('subscribe', (subTest) => {
-        const filtered = new ValueStream(3).filter(abs);
+        const filtered = new ValueStream(3);
+        filtered.filter(abs);
         const history = [];
         const errors = [];
 

@@ -61,3 +61,7 @@ added (back) watch.
 # 3.4.9
 
 echoing isStopped and closed from the valueStream in ValueStream /ValueMapStream;
+
+# 3.4.10
+
+adding delete to map; adding jsDocs. where/on returns observables. 

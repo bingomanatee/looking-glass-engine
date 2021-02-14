@@ -7,7 +7,7 @@ module.exports = {
   plugins: [
     resolve(),
     commonjs(),
-    terser(),
+ //   terser(),
   ],
   output: {
     file: 'lib/index.js',

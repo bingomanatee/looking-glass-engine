@@ -301,6 +301,20 @@ tap.test(p.name, (suite) => {
       wTest.end();
     });
 
+    testVS.test('delete', (dTest) => {
+      const coord = new ValueMapStream({
+        a: 1,
+        b: 2,
+        c: 3,
+      });
+
+      coord.delete('b');
+
+      dTest.same(coord.object, { a: 1, c: 3 });
+
+      dTest.end();
+    });
+
     testVS.end();
   });
 

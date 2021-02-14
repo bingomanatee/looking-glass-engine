@@ -12,6 +12,7 @@ export const A_NEXT = 'next';
 export const A_ANY = 'A_ANY';
 export const A_ACTION = 'A_ACTION';
 export const A_SET = 'A_SET';
+export const A_DELETE = 'A_DELETE';
 
 export const setEvents = [E_INITIAL, E_RESTRICT, E_FILTER, E_VALIDATE, E_PRECOMMIT, E_COMMIT, E_COMPLETE];
 
