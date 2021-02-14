@@ -163,6 +163,14 @@ export default class ValueStream {
     return this;
   }
 
+  get isStopped() {
+    return this._valueSubject.isStopped;
+  }
+
+  get closed() {
+    return this._valueSubject.closed;
+  }
+
   send(action, value, stages) {
     const actionStages = stages || this._eventTree.get(action) || this._eventTree.get(A_ANY);
     const onError = this._errorStream.next.bind(this._errorStream);

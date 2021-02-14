@@ -57,3 +57,7 @@ removed default action handling to avoid false positives for non-existant action
 # 3.4.5 
 
 added (back) watch. 
+
+# 3.4.9
+
+echoing isStopped and closed from the valueStream in ValueStream /ValueMapStream;
