@@ -65,3 +65,12 @@ echoing isStopped and closed from the valueStream in ValueStream /ValueMapStream
 # 3.4.10
 
 adding delete to map; adding jsDocs. where/on returns observables. 
+
+# 3.4.11
+
+adding "fast" versions of ValueStream/ValueMapStream for scenarios
+in which update eventing is not required. 
+In ValueMapStreamFast/ValueStreamFast, 
+`.next()/.set(...)/.delete(....)`'s directly update
+the value stream without using an event pipe without opportunity for 
+filter, finalize or on/when interrupts. 

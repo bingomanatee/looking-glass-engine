@@ -1,4 +1,3 @@
-import { immerable, produce } from 'immer';
 import isEqual from 'lodash/isEqual';
 import lGet from 'lodash/get';
 import { ABSENT, Å, e } from './constants';
@@ -17,7 +16,6 @@ class Event {
    * @param target {any}
    */
   constructor(action, valueStream, stage, target) {
-    this[immerable] = true; // Option 2
     if (typeof action === 'object') {
       this._initParams(action);
     } else {
@@ -99,8 +97,6 @@ class Event {
   }
 }
 
-Event[immerable] = true;
-
 Event.toEvent = (data) => {
   if (!data) return new Event({});
   if (data instanceof Event) return data;
@@ -112,7 +108,6 @@ Event.toEvent = (data) => {
  */
 export class EventFilter {
   constructor(action, value, stage, target) {
-    this[immerable] = true; // Option 2
     if (typeof action === 'object') {
       this._initParams(action);
     } else {
@@ -211,8 +206,6 @@ export class EventFilter {
       && this.valueEquals(otherEvent, isRaw);
   }
 }
-
-EventFilter[immerable] = true;
 
 Event.EventFilter = EventFilter;
 

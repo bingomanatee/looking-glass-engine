@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>JSDoc: Class: ValueMapStream</title>
+    <title>JSDoc: Class: ValueMapStreamFast</title>
 
     <script src="scripts/prettify/prettify.js"> </script>
     <script src="scripts/prettify/lang-css.js"> </script>
@@ -17,7 +17,7 @@
 
 <div id="main">
 
-    <h1 class="page-title">Class: ValueMapStream</h1>
+    <h1 class="page-title">Class: ValueMapStreamFast</h1>
 
     
 
@@ -28,7 +28,7 @@
 
 <header>
     
-        <h2><span class="attribs"><span class="type-signature"></span></span>ValueMapStream<span class="signature">(value, options)</span><span class="type-signature"></span></h2>
+        <h2><span class="attribs"><span class="type-signature"></span></span>ValueMapStreamFast<span class="signature">(value, options)</span><span class="type-signature"></span></h2>
         
     
 </header>
@@ -41,7 +41,7 @@
     
 
     
-    <h4 class="name" id="ValueMapStream"><span class="type-signature"></span>new ValueMapStream<span class="signature">(value, options)</span><span class="type-signature"></span></h4>
+    <h4 class="name" id="ValueMapStreamFast"><span class="type-signature"></span>new ValueMapStreamFast<span class="signature">(value, options)</span><span class="type-signature"></span></h4>
     
 
     
@@ -164,7 +164,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="ValueMapStream.js.html">ValueMapStream.js</a>, <a href="ValueMapStream.js.html#line123">line 123</a>
+        <a href="ValueMapStreamFast.js.html">ValueMapStreamFast.js</a>, <a href="ValueMapStreamFast.js.html#line53">line 53</a>
     </li></ul></dd>
     
 
@@ -258,7 +258,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="ValueMapStream.js.html">ValueMapStream.js</a>, <a href="ValueMapStream.js.html#line288">line 288</a>
+        <a href="ValueMapStreamFast.js.html">ValueMapStreamFast.js</a>, <a href="ValueMapStreamFast.js.html#line163">line 163</a>
     </li></ul></dd>
     
 
@@ -320,7 +320,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="ValueMapStream.js.html">ValueMapStream.js</a>, <a href="ValueMapStream.js.html#line266">line 266</a>
+        <a href="ValueMapStreamFast.js.html">ValueMapStreamFast.js</a>, <a href="ValueMapStreamFast.js.html#line141">line 141</a>
     </li></ul></dd>
     
 
@@ -382,7 +382,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="ValueMapStream.js.html">ValueMapStream.js</a>, <a href="ValueMapStream.js.html#line239">line 239</a>
+        <a href="ValueMapStreamFast.js.html">ValueMapStreamFast.js</a>, <a href="ValueMapStreamFast.js.html#line114">line 114</a>
     </li></ul></dd>
     
 
@@ -534,7 +534,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="ValueMapStream.js.html">ValueMapStream.js</a>, <a href="ValueMapStream.js.html#line212">line 212</a>
+        <a href="ValueMapStreamFast.js.html">ValueMapStreamFast.js</a>, <a href="ValueMapStreamFast.js.html#line87">line 87</a>
     </li></ul></dd>
     
 
@@ -671,7 +671,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="ValueMapStream.js.html">ValueMapStream.js</a>, <a href="ValueMapStream.js.html#line231">line 231</a>
+        <a href="ValueMapStreamFast.js.html">ValueMapStreamFast.js</a>, <a href="ValueMapStreamFast.js.html#line106">line 106</a>
     </li></ul></dd>
     
 
@@ -708,207 +708,6 @@
     <dd>
         
 <span class="param-type">*</span>
-
-
-    </dd>
-</dl>
-
-    
-
-
-
-
-
-        
-            
-
-    
-
-    
-    <h4 class="name" id="onField"><span class="type-signature"></span>onField<span class="signature">(fn, name, stage)</span><span class="type-signature"> &rarr; {subscriber}</span></h4>
-    
-
-    
-
-
-
-<div class="description">
-    watches for changes to a specific field
-</div>
-
-
-
-
-
-
-
-
-
-    <h5>Parameters:</h5>
-    
-
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>fn</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">function</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last"></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>name</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last"></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>stage</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last">a phase code (optional)</td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-
-
-
-
-
-<dl class="details">
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="ValueMapStream.js.html">ValueMapStream.js</a>, <a href="ValueMapStream.js.html#line157">line 157</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<h5>Returns:</h5>
-
-        
-
-
-<dl>
-    <dt>
-        Type
-    </dt>
-    <dd>
-        
-<span class="param-type">subscriber</span>
 
 
     </dd>
@@ -979,7 +778,7 @@
 <span class="param-type">string</span>
 |
 
-<span class="param-type">map</span>
+<span class="param-type">Map</span>
 
 
             
@@ -989,7 +788,7 @@
 
             
 
-            <td class="description last"></td>
+            <td class="description last">if the key is a map then set performs exactly like next.</td>
         </tr>
 
     
@@ -1076,7 +875,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="ValueMapStream.js.html">ValueMapStream.js</a>, <a href="ValueMapStream.js.html#line196">line 196</a>
+        <a href="ValueMapStreamFast.js.html">ValueMapStreamFast.js</a>, <a href="ValueMapStreamFast.js.html#line71">line 71</a>
     </li></ul></dd>
     
 

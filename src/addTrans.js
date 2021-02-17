@@ -1,9 +1,7 @@
 import { BehaviorSubject, from, Subject } from 'rxjs';
-import isEqual from 'lodash/isEqual';
 import {
   combineLatest, distinctUntilChanged, filter, map,
 } from 'rxjs/operators';
-import lGet from 'lodash/get';
 import Event, { EventFilter } from './Event';
 import {
   E_COMMIT, E_FILTER, E_INITIAL, E_VALIDATE, A_NEXT, E_COMPLETE, A_ANY,
