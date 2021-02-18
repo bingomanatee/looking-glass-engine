@@ -29,6 +29,12 @@ internally or that are thrown by the event system are expressed from that stream
 Unlike most subjects, ValueStreams persist even if errors occur, 
 as those errors route a separate subject. 
 
+### *ValueFastStream* 
+
+A "fast" variant of the ValueStream class; its not filterable or interruptable
+but it has fewer moving pieces than the ValueStream. In most ways its interface
+is identical to ValueStream.
+
 ## constructor(value, {name, filter, finalize}) 
 
 sets the initial value of the state. The second parameter is optional; it lets you set 
@@ -36,11 +42,12 @@ hooks (described below) in the constructor.
  
 The initial value of the stream doesn't pass through the filter or finalize
 hooks; to ensure the stream's value passes through these hooks, manually set a value
-via stream.next(value). 
+via stream.next(value). (filter/finalize not available for ValueFastStream)
 
 ## subject interface methods
 
 * `next(value)` - sends a new value to any subscribers
+* `getValue()` - returns the streams' current value. (=== `mystream.value`)
 * `subscribe(next, error, done)` or `(subscribe({next, error, done))` -- receives updates from value changes.
 * `pipe(...rxjs operators)` - returns a modified subject. note-- the pipe operators
   won't apply to any subscribers to the original stream, only those to the modified subject. 
@@ -50,6 +57,8 @@ via stream.next(value).
 
 ### method: filter(fn) 
 
+*Not available for ValueFastStream* 
+
 filter allows you to write a function to either sanitize or block a next-submitted value.
 the output of the function is the next value of the stream. Throwing an error will abort 
 the update and retain the current value of the stream. 
@@ -57,8 +66,8 @@ the update and retain the current value of the stream.
 its best used to either sanitize updates (trim strings, remove empty values from arrays)
 or to prevent bad data from being admitted to the stream's value by throwing errors. 
 
-If the function doesn't throw it must return a value - either the first parameter or a 
-sanitized version of it. 
+If the function doesn't throw it **must return a value** - either the first parameter or a 
+sanitized version of it. Failing to do so will set the streams' value to undefined. 
 
 ```javascript
 
@@ -71,7 +80,9 @@ const filtered = new ValueStream(3).filter(abs);
 
 ```
 
-## finalize((event, stream)) 
+## finalize((event, stream))
+
+*Not available for ValueFastStream*
 
 finalize takes a function that accepts an Event - a Subject with a value 
 that will be committed; it listens after finalize 
@@ -106,28 +117,23 @@ import {produce} from 'immer';
 
 ValueMapStreams extends ValueStreams, and has the same constructor profile.
 They manage an internal javascript Map. A ValueMapStream will accept an object value in its 
-constructor, but it will translate that object into a Map. 
+constructor, but it will translate that object into a Map.
 
-**A note on "Map Integrity"/new keys **
+If you need the map transpiled into an Object, use the `myStream.object` 
+property. 
 
-ValueMapStream is designed with the idea of a "fixed map" in which keys are not
-created or deleted. That being said, there are also no code guards put in place 
-to *prevent* you from adding new keys to the map. 
-
-`set[newField](value)` actions will not *necessarily* be available for fields un-defined
-at the streams' creation, but the `myStream.set(newKey, newValue)` will work and 
-emit events as normal.
-
-In any event there's no harm in initializing any needed fields in the constructor even if
-you do so with an undefined value, so that the setField actions can be made 
-available. 
+As with ValueStream, there is a `ValueMapStreamFast` class that manages
+most of the functionality described below without the event middleware. 
 
 ## method `set(key, value) or set(Map)`
 
 sets a single field, or several fields at once; merges the new values into 
-the current ValueMapStream's Map value. 
+the current ValueMapStream's Map value. `myStream.set(map)` is functionally
+identical to `myStream.next(map)`
 
 ## method` onField((event<Subject>, stream) => {...}, name, stage = E_PRECOMMIT) or ((event<subject>, stream) => {...}, [names]), stage)`
+
+*Not available for ValueFastMapStream*
 
 onField listens for events in which a field is updated (set). 
 
@@ -147,6 +153,9 @@ returns a subject which emits when a particular field or fields are updated.
 By default it compares field for field via lodash.`isEqual`. If you want to use another comparator
 (as an argument to `rxjs.distinctUntilChanged`) pass the comparator as the last function. 
 
+This is useful when you want to only react to a specific range of field updates
+and ignore any updates to other field, much like the `effects` hook in React. 
+
 The output of this method is a subject which can be `subscribe`'d to; 
 you can save the output and `.unsubscribe()` if you want to cancel the effects of the subscription. 
 
@@ -161,6 +170,14 @@ event observers.
 my is an objectified version of the value; its a proxy to value (where proxies are available)
 that allows dot-access to the current maps value; useful for deconstruction or injection to React components.
 
+The difference between `.my` and `.object` is that in environments where Proxy
+is available, it doesn't manufacture an object on each call, but uses a shared proxy. 
+Creating a new object instance just to deconstruct it for a single field is wasteful. 
+
+In any event, don't deconstruct or capture `my` as its own thing as in `const asObject = streamInstance.my`;
+it can have varying effects from browser to browser. If you want to deconstruct or shapshot an object of values
+use `.object` which always produces a new object. 
+
 # Adding actions to a stream.
 
 passing a ValueStream or ValueMapStream instance through addActions will
@@ -172,6 +189,12 @@ The first argument into the method is always a reference to the stream itself.
 
 The reason that streams don't come with actions inherent is that streams can be nested,
 and its better to add the overhead of actions on a case by case basis.
+
+## binding actions
+
+The fact that the context (stream) is passed to every action automatically
+obviates the need for "this" to be meaningful. In fact there is no binding
+done in the code of addActions to any of the passed-through methods. 
 
 ## addActions(stream, {actions})
 
@@ -211,6 +234,19 @@ test.same(stream.do.magnitude(), 13);
 
 ```
 
+actions can be used to: 
+
+* update several fields with one call
+* reduce several fields into a computed value (rounding, summing, etc).
+* perform an async action such as pulling data from a network endpoint or saving
+  data via REST.
+* creating a computed state or stateSummary such as `record.do.isSaveable()` 
+
+### Adding new actions
+
+Although in general post-modifying the actions of a Stream is not a good 
+idea, you can do so with `myStream.addAction(name, value)` to any stream
+that has been passed through `addActions()`.
 
 # Interoperating with React
 
@@ -227,36 +263,39 @@ You can create a store and keep it within state hooks:
 const ViewWithStore = (props) => {
 
 const [store, setStore] = useState(null);
+// note - we subscribe every update of xyStore locally
+// to keep react updating with the store; its not directly used.   
 const [value, setValue] = useState(new Map());
 
 useEffect(() => {
 
-const mewStore = new addAction(ValueStore({x: 0, y: 0}),
+const xyStore = addActions(new ValueMapStore({x: 0, y: 0}),
     {
       offset(str, dX, dY) {
-        const next = { ...s.value };
-        next.x += dX;
-        next.y += dY;
-        str.next(next);
+        const next = new Map(str.value);
+        next.set('x', str.my.x + dY)
+        next.set('y', str.my.y + dY)
+        str.set(next);
       },
-      magnitude({ value: { x, y } }) {
+      magnitude({ object: { x, y } }) {
         return Math.round(Math.sqrt(x ** 2 + y ** 2));
       },
     });
 
-  const sub = newStore.subscribe(setValue);
-  setStore(newStore);
+  const sub = xyStore.subscribe(setValue);
+  setStore(xyStore);
 
     return () => sub.unsubscribe();
 }, []);
 
 if (!store) return '';
-
-  return <PureView  {...value} actions={store.my} />
+  return <PureView  {...store.object} actions={store.do} />
 }
 ```
 
-Or, in a class-based component, 
+Or, in a class-based component. Note - in this case we echo the store's
+state into the class component which is probably redundant - 
+acessing state directly off `this._store` is better. 
 
 ```javascript
 
@@ -264,13 +303,13 @@ class MyClass extends Component {
 
   constructor( props) {
     super(props);
-    this._store = new ValueMapStore({x: 0, y: 0});
+    this._store = addActions(new ValueMapStore({x: 0, y: 0}));
    this.state = this._store.value;
 }
 
   componentDidMount() {
-    this._sub = this._store.subscribe((map) => {
-      this.setState(new Map(map))
+    this._sub = this._store.subscribe(() => {
+      this.setState(this._store.object)
     });  
   }
 
@@ -278,6 +317,10 @@ class MyClass extends Component {
     if (this._sub) this._sub.unsubscribe();
   }
 // ....
+  
+  render() {
+    return <PureView {...this._store.object} actions={this._store.do} />
+  }
 }
 
 ```

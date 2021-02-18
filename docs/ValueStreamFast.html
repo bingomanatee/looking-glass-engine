@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>JSDoc: Class: ValueStream</title>
+    <title>JSDoc: Class: ValueStreamFast</title>
 
     <script src="scripts/prettify/prettify.js"> </script>
     <script src="scripts/prettify/lang-css.js"> </script>
@@ -17,7 +17,7 @@
 
 <div id="main">
 
-    <h1 class="page-title">Class: ValueStream</h1>
+    <h1 class="page-title">Class: ValueStreamFast</h1>
 
     
 
@@ -28,11 +28,14 @@
 
 <header>
     
-        <h2><span class="attribs"><span class="type-signature"></span></span>ValueStream<span class="signature">(value, options)</span><span class="type-signature"></span></h2>
+        <h2><span class="attribs"><span class="type-signature"></span></span>ValueStreamFast<span class="signature">(value, options)</span><span class="type-signature"></span></h2>
         
             <div class="class-description">A streaming state system. It has the external features of a BehaviorSubject.
-Most of the basic functionality it inherits from ValueStreamFast;
-the code here adds event-driven update cycles to next.</div>
+Unlike ValueStream, ValueStreamBase forgoes events; this means no filtering, finalize,
+or interrupts to the updating of the Streams.
+
+This trades off increased speed and decreased
+memory usse against a more limited feature set.</div>
         
     
 </header>
@@ -47,7 +50,7 @@ the code here adds event-driven update cycles to next.</div>
     
 
     
-    <h4 class="name" id="ValueStream"><span class="type-signature"></span>new ValueStream<span class="signature">(value, options)</span><span class="type-signature"></span></h4>
+    <h4 class="name" id="ValueStreamFast"><span class="type-signature"></span>new ValueStreamFast<span class="signature">(value, options)</span><span class="type-signature"></span></h4>
     
 
     
@@ -167,7 +170,7 @@ the code here adds event-driven update cycles to next.</div>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="ValueStream.js.html">ValueStream.js</a>, <a href="ValueStream.js.html#line31">line 31</a>
+        <a href="ValueStreamFast.js.html">ValueStreamFast.js</a>, <a href="ValueStreamFast.js.html#line19">line 19</a>
     </li></ul></dd>
     
 
@@ -213,6 +216,72 @@ the code here adds event-driven update cycles to next.</div>
     
 
     
+        <h3 class="subsection-title">Members</h3>
+
+        
+            
+<h4 class="name" id="value"><span class="type-signature"></span>value<span class="type-signature"></span></h4>
+
+
+
+
+<div class="description">
+    passthrough to the valueStream's value
+</div>
+
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="ValueStreamFast.js.html">ValueStreamFast.js</a>, <a href="ValueStreamFast.js.html#line87">line 87</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+        
+    
 
     
         <h3 class="subsection-title">Methods</h3>
@@ -223,7 +292,7 @@ the code here adds event-driven update cycles to next.</div>
     
 
     
-    <h4 class="name" id="filter"><span class="type-signature"></span>filter<span class="signature">(fn)</span><span class="type-signature"> &rarr; {<a href="ValueStream.html">ValueStream</a>}</span></h4>
+    <h4 class="name" id="complete"><span class="type-signature"></span>complete<span class="signature">()</span><span class="type-signature"></span></h4>
     
 
     
@@ -231,9 +300,95 @@ the code here adds event-driven update cycles to next.</div>
 
 
 <div class="description">
-    update values; unlike when/on observers,
-this message receives a raw value and returns
-a new value.
+    shuts down the valueStream, freezing its value and preventing updates
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="ValueStreamFast.js.html">ValueStreamFast.js</a>, <a href="ValueStreamFast.js.html#line102">line 102</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="error"><span class="type-signature"></span>error<span class="signature">(error, event)</span><span class="type-signature"> &rarr; {<a href="ValueStream.html">ValueStream</a>|*}</span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    emit an error to subscribes.
 </div>
 
 
@@ -269,15 +424,33 @@ a new value.
 
         <tr>
             
-                <td class="name"><code>fn</code></td>
+                <td class="name"><code>error</code></td>
             
 
             <td class="type">
             
                 
-<span class="param-type">function</span>
+<span class="param-type">Error</span>
 
 
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>event</code></td>
+            
+
+            <td class="type">
             
             </td>
 
@@ -326,7 +499,7 @@ a new value.
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="ValueStream.js.html">ValueStream.js</a>, <a href="ValueStream.js.html#line115">line 115</a>
+        <a href="ValueStreamFast.js.html">ValueStreamFast.js</a>, <a href="ValueStreamFast.js.html#line50">line 50</a>
     </li></ul></dd>
     
 
@@ -363,6 +536,9 @@ a new value.
     <dd>
         
 <span class="param-type"><a href="ValueStream.html">ValueStream</a></span>
+|
+
+<span class="param-type">*</span>
 
 
     </dd>
@@ -380,7 +556,7 @@ a new value.
     
 
     
-    <h4 class="name" id="finalize"><span class="type-signature"></span>finalize<span class="signature">(finalize)</span><span class="type-signature"> &rarr; {<a href="ValueStream.html">ValueStream</a>}</span></h4>
+    <h4 class="name" id="getValue"><span class="type-signature"></span>getValue<span class="signature">()</span><span class="type-signature"> &rarr; {*}</span></h4>
     
 
     
@@ -388,7 +564,7 @@ a new value.
 
 
 <div class="description">
-    listen for final commission of values.
+    imitating BehaviorSubject's API; returns the current value;
 </div>
 
 
@@ -397,55 +573,6 @@ a new value.
 
 
 
-
-
-    <h5>Parameters:</h5>
-    
-
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>finalize</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">function</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last"></td>
-        </tr>
-
-    
-    </tbody>
-</table>
 
 
 
@@ -481,7 +608,7 @@ a new value.
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="ValueStream.js.html">ValueStream.js</a>, <a href="ValueStream.js.html#line133">line 133</a>
+        <a href="ValueStreamFast.js.html">ValueStreamFast.js</a>, <a href="ValueStreamFast.js.html#line95">line 95</a>
     </li></ul></dd>
     
 
@@ -517,7 +644,7 @@ a new value.
     </dt>
     <dd>
         
-<span class="param-type"><a href="ValueStream.html">ValueStream</a></span>
+<span class="param-type">*</span>
 
 
     </dd>
@@ -636,7 +763,7 @@ a new value.
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="ValueStream.js.html">ValueStream.js</a>, <a href="ValueStream.js.html#line219">line 219</a>
+        <a href="ValueStreamFast.js.html">ValueStreamFast.js</a>, <a href="ValueStreamFast.js.html#line79">line 79</a>
     </li></ul></dd>
     
 
@@ -672,7 +799,7 @@ a new value.
     
 
     
-    <h4 class="name" id="send"><span class="type-signature"></span>send<span class="signature">(action, value, stages)</span><span class="type-signature"></span></h4>
+    <h4 class="name" id="pipe"><span class="type-signature"></span>pipe<span class="signature">(&hellip;args)</span><span class="type-signature"> &rarr; {Observable.&lt;unknown>}</span></h4>
     
 
     
@@ -680,7 +807,7 @@ a new value.
 
 
 <div class="description">
-    initiate an event.
+    allows for post-filtering or augmentation of streaming events
 </div>
 
 
@@ -704,190 +831,7 @@ a new value.
         <th>Type</th>
 
         
-
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>action</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last">- an action code</td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>value</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">var</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last"></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>stages</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">Array.&lt;stages></span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last">- optional array of stages that the event goes through</td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-
-
-
-
-
-<dl class="details">
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="ValueStream.js.html">ValueStream.js</a>, <a href="ValueStream.js.html#line191">line 191</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        
-            
-
-    
-
-    
-    <h4 class="name" id="setStages"><span class="type-signature"></span>setStages<span class="signature">(action, stages)</span><span class="type-signature"></span></h4>
-    
-
-    
-
-
-
-<div class="description">
-    override the stages that a particular action goes through.
-WARNING: its inadvisable to do this with built-in actions unless you ADD to
-the events and leave the base ones intact.
-</div>
-
-
-
-
-
-
-
-
-
-    <h5>Parameters:</h5>
-    
-
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
+        <th>Attributes</th>
         
 
         
@@ -901,7 +845,7 @@ the events and leave the base ones intact.
 
         <tr>
             
-                <td class="name"><code>action</code></td>
+                <td class="name"><code>args</code></td>
             
 
             <td class="type">
@@ -909,184 +853,15 @@ the events and leave the base ones intact.
             </td>
 
             
-
-            
-
-            <td class="description last"></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>stages</code></td>
-            
-
-            <td class="type">
-            
+                <td class="attributes">
                 
-<span class="param-type">Array.&lt;strings></span>
 
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last">the stages that a particular action passes through.</td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-
-
-
-
-
-<dl class="details">
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="ValueStream.js.html">ValueStream.js</a>, <a href="ValueStream.js.html#line73">line 73</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        
-            
-
-    
-
-    
-    <h4 class="name" id="when"><span class="type-signature"></span>when<span class="signature">(fn, test)</span><span class="type-signature"> &rarr; {subscriber}</span></h4>
-    
-
-    
-
-
-
-
-
-
-
-
-
-
-
-    <h5>Parameters:</h5>
-    
-
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>fn</code></td>
-            
-
-            <td class="type">
-            
                 
-<span class="param-type">function</span>
 
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last"></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>test</code></td>
-            
-
-            <td class="type">
-            
                 
-<span class="param-type"><a href="EventFilter.html">EventFilter</a></span>
-
-
-            
-            </td>
-
+                    &lt;repeatable><br>
+                
+                </td>
             
 
             
@@ -1132,7 +907,7 @@ the events and leave the base ones intact.
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="ValueStream.js.html">ValueStream.js</a>, <a href="ValueStream.js.html#line159">line 159</a>
+        <a href="ValueStreamFast.js.html">ValueStreamFast.js</a>, <a href="ValueStreamFast.js.html#line154">line 154</a>
     </li></ul></dd>
     
 
@@ -1168,7 +943,208 @@ the events and leave the base ones intact.
     </dt>
     <dd>
         
-<span class="param-type">subscriber</span>
+<span class="param-type">Observable.&lt;unknown></span>
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="subscribe"><span class="type-signature"></span>subscribe<span class="signature">(onNext, onError, onComplete)</span><span class="type-signature"> &rarr; {Subscription}</span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    Subscribe to updates.
+</div>
+
+
+
+
+
+
+
+
+
+    <h5>Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>onNext</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">function</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>onError</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">function</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>onComplete</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">function</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="ValueStreamFast.js.html">ValueStreamFast.js</a>, <a href="ValueStreamFast.js.html#line114">line 114</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5>Returns:</h5>
+
+        
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">Subscription</span>
 
 
     </dd>
