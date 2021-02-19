@@ -33,7 +33,19 @@ export const Å = ABSENT;
 // param 2 === absent, undefined or target
 export const eqÅ = (target, subject) => (typeof subject === 'undefined') || subject === Å || target === subject;
 
-export const e = (message, meta) => Object.assign(new Error(message), { meta });
+export const e = (message, meta) => {
+  if (typeof message !== 'string') {
+    message = '';
+  }
+  const error = new Error(message);
+  try {
+    if (meta) error.meta = meta;
+  } catch (err) {
+
+  }
+
+  return error;
+};
 
 export const toMap = (item) => {
   if (!item) return new Map();

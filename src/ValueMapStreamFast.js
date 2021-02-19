@@ -15,6 +15,10 @@ class ValueMapStreamFast extends ValueStreamFast {
     super(toMap(value), options);
   }
 
+  has(key) {
+    return this.value.has(key);
+  }
+
   /**
    * set a specific key or set of keys
    * @param key {string | Map} if the key is a map then set performs exactly like next.
@@ -113,9 +117,7 @@ class ValueMapStreamFast extends ValueStreamFast {
     const current = this.value;
     const next = new Map(current);
     next.delete(key);
-    console.log('deleted: ', key, 'from', current, 'made', next);
     this._updateValue(next);
-    console.log('--- after delete value is ', this.value);
   }
 
   next(nextMap) {

@@ -170,6 +170,10 @@ class ValueObjectStream extends ValueStream {
     });
   }
 
+  has(key) {
+    return key in this.value;
+  }
+
   /**
    * set a specific key or set of keys
    * @param key {string | map}

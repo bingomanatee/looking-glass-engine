@@ -156,6 +156,10 @@ class ValueMapStream extends ValueStream {
     return observer;
   }
 
+  has(key) {
+    return this.value.has(key);
+  }
+
   /**
    * set a specific key or set of keys
    * @param key {string | map}
