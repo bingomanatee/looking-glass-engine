@@ -74,3 +74,10 @@ In ValueMapStreamFast/ValueStreamFast,
 `.next()/.set(...)/.delete(....)`'s directly update
 the value stream without using an event pipe without opportunity for 
 filter, finalize or on/when interrupts. 
+
+# 3.4.12
+
+Added a ValueObjectStream for when stores' fundamental model must 
+be maintained as an object model. (made under the hood changes 
+to fieldSubjects)
+

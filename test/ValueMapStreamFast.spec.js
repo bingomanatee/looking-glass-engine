@@ -68,10 +68,7 @@ tap.test(p.name, (suite) => {
         c: 3,
       });
 
-      console.log('--- object before delete:', coord.object);
       coord.delete('b');
-      console.log('--- object after delete:', coord.object);
-      console.log('--- value after delete:', coord.value);
 
       dTest.same(coord.object, { a: 1, c: 3 });
 

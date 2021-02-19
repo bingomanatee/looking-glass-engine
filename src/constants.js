@@ -1,3 +1,5 @@
+import flattenDeep from 'lodash/flattenDeep';
+
 export const E_INITIAL = 'E_INITIAL';
 export const E_FILTER = 'E_FILTER';
 export const E_VALIDATE = 'E_VALIDATE';
@@ -43,3 +45,12 @@ export const toMap = (item) => {
   }
   return out;
 };
+
+export const mergeMaps = (...args) => flattenDeep(args).reduce((map, other) => {
+  if (other instanceof Map) {
+    other.forEach((value, key) => {
+      map.set(key, value);
+    });
+  }
+  return map;
+}, new Map());

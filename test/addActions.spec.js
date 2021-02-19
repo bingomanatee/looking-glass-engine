@@ -2,9 +2,9 @@
 import produce from 'immer';
 
 const tap = require('tap');
-const p = require('./../package.json');
+const p = require('../package.json');
 
-const { ValueStream, ValueMapStream, addActions } = require('./../lib/index');
+const { ValueStream, ValueMapStream, addActions } = require('../lib/index');
 
 tap.test(p.name, (suite) => {
   suite.test('addActions', (testA) => {
@@ -53,6 +53,41 @@ tap.test(p.name, (suite) => {
       ]));
 
       msTest.end();
+    });
+
+    testA.test('response to non-existent actions', (non) => {
+      const stream = addActions(
+        new ValueStream({ x: 0, y: 0 }),
+        {
+          offset(s, dX, dY) {
+            const next = { ...s.value };
+            next.x += dX;
+            next.y += dY;
+            s.next(next);
+          },
+          magnitude({ value: { x, y } }) {
+            return Math.round(Math.sqrt(x ** 2 + y ** 2));
+          },
+        },
+      );
+
+      let msg = '';
+      try {
+        stream.do.normalize();
+      } catch (err) {
+        msg = err.message;
+      }
+
+      non.same(msg, 'no action normalize');
+
+      try {
+        stream.do.setZ(3);
+      } catch (err) {
+        msg = err.message;
+      }
+
+
+      non.end();
     });
 
     testA.end();

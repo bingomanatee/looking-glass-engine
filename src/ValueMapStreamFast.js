@@ -1,51 +1,6 @@
-import { distinctUntilChanged, map } from 'rxjs/operators';
-import lGet from 'lodash/get';
-import isEqual from 'lodash/isEqual';
-import flattenDeep from 'lodash/flattenDeep';
-import { BehaviorSubject } from 'rxjs';
 import ValueStreamFast from './ValueStreamFast';
-import { e, toMap } from './constants';
-
-const kas = (aMap) => {
-  try {
-    return Array.from(aMap.keys()).sort().join(',');
-  } catch {
-    return null;
-  }
-};
-
-const compareMaps = (map1, map2) => {
-  if (!((map1 instanceof Map) && (map2 instanceof Map))) {
-    return false;
-  }
-  if (map1.size !== map2.size) return false;
-  if (!map1.size) return true;
-  const key1 = kas(map1);
-  const key2 = kas(map2);
-  if (!((key1 && key2) && (key1 === key2))) return false;
-
-  let same = true;
-  map1.forEach((value, field) => {
-    if (!same) return;
-    same = isEqual(value, map2.get(field));
-  });
-  return same;
-};
-
-function onlyMap(e) {
-  if (!(e.value instanceof Map)) {
-    e.error('only accepts map values');
-  }
-}
-
-function onlyOldKeys(event, target) {
-  const oldKeys = [...target.value.keys()];
-  event.value.forEach((value, key) => {
-    if (!oldKeys.includes(key)) {
-      throw e(`key ${key} must be present in ${oldKeys.join(', ')}`, target);
-    }
-  });
-}
+import { e, mergeMaps, toMap } from './constants';
+import fieldProxy from './fieldProxy';
 
 /**
  *
@@ -58,7 +13,6 @@ class ValueMapStreamFast extends ValueStreamFast {
    */
   constructor(value, options) {
     super(toMap(value), options);
-    this.fieldSubjects = new Map();
   }
 
   /**
@@ -77,25 +31,6 @@ class ValueMapStreamFast extends ValueStreamFast {
       this.next(new Map([[key, value]]));
     }
     return this;
-  }
-
-  /**
-   * adds a stream whose values are transported to a key in the map's value.
-   * @param key {string}
-   * @param stream {Subject} any RxJS subject or a ValueStream/ValueMapStream
-   */
-  addFieldSubject(key, stream) {
-    if (!this.fieldSubjects.has(key)) {
-      this.fieldSubjects.set(key, stream);
-      const sub = stream.subscribe((value) => this.set(key, value, true));
-      this.subscribe({
-        complete() {
-          sub.unsubscribe();
-        },
-      });
-    } else {
-      throw e(`cannot redefine field subject ${key}`, { key, stream, target: this });
-    }
   }
 
   /**
@@ -148,14 +83,6 @@ class ValueMapStreamFast extends ValueStreamFast {
     return this.object;
   }
 
-  _fieldProxy() {
-    return new Proxy(this.fieldSubjects, {
-      get(vms, key) {
-        return vms.get(key);
-      },
-    });
-  }
-
   /**
    * a proxy to the values in the value map
    * @returns {*}
@@ -195,13 +122,10 @@ class ValueMapStreamFast extends ValueStreamFast {
     if (!(nextMap instanceof Map)) {
       throw new Error('ValueMapStreamFast.next() requires a Map input');
     }
-    const current = this.value;
-    const next = new Map(current);
-    nextMap.forEach((value, key) => {
-      next.set(key, value);
-    });
-    this._updateValue(next);
+    this._updateValue(mergeMaps(this.value, nextMap));
   }
 }
+
+fieldProxy(ValueMapStreamFast);
 
 export default ValueMapStreamFast;

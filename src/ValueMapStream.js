@@ -4,12 +4,21 @@ import isEqual from 'lodash/isEqual';
 import flattenDeep from 'lodash/flattenDeep';
 import { BehaviorSubject } from 'rxjs';
 import ValueStream from './ValueStream';
+import fieldProxy from './fieldProxy';
 import {
   setEvents,
   A_DELETE, A_NEXT, A_SET, E_COMMIT, E_INITIAL, E_PRECOMMIT, E_PRE_MAP_MERGE,
   mapNextEvents, E_MAP_MERGE, toMap, e, Å, E_RESTRICT,
+  mergeMaps,
 } from './constants';
 import { EventFilter } from './Event';
+import {
+  onCommitSet,
+  onDeleteCommit, onInitialNext,
+  onMergeNext,
+  onPrecommitSet,
+  onRestrictKeyForSet,
+} from './triggers';
 
 const kas = (aMap) => {
   try {
@@ -37,41 +46,11 @@ const compareMaps = (map1, map2) => {
   return same;
 };
 
-const onInitialNext = new EventFilter({
-  action: A_NEXT,
-  stage: E_INITIAL,
-});
-
-const onMergeNext = new EventFilter({
-  action: A_NEXT,
-  stage: E_MAP_MERGE,
-});
-
-const onPrecommitSet = new EventFilter({
-  action: A_SET,
-  stage: E_PRECOMMIT,
-});
-
-const onCommitSet = new EventFilter({
-  action: A_SET,
-  stage: E_COMMIT,
-});
-
-const onRestrictKeyForSet = new EventFilter({
-  action: A_SET,
-  stage: E_RESTRICT,
-});
-
-const onDeleteCommit = new EventFilter({
-  action: A_DELETE,
-  stage: E_COMMIT,
-});
-
 const SR_FROM_SET = Symbol('action:set');
 
-function onlyMap(e) {
-  if (!(e.value instanceof Map)) {
-    e.error('only accepts map values');
+function onlyMap(evt) {
+  if (!(evt.value instanceof Map)) {
+    evt.error('only accepts map values');
   }
 }
 
@@ -85,10 +64,7 @@ function onlyOldKeys(event, target) {
 }
 
 const setToNext = (event, target) => {
-  const nextValue = new Map(target.value);
-  if (event.value instanceof Map) {
-    event.value.forEach((value, key) => nextValue.set(key, value));
-  }
+  const nextValue = mergeMaps(target.value, event.value);
   event.complete();
   target.send(A_NEXT, nextValue);
 };
@@ -104,17 +80,13 @@ const deleteKey = (event, target) => {
       }
       const targetValue = new Map(target.value);
       targetValue.delete(key);
-      target._valueSubject.value.delete(key);
+      target._valueSubject.next(targetValue);
     },
   });
 };
 
 const mergeNext = (event, target) => {
-  const next = new Map(target.value);
-  if (event.value instanceof Map) {
-    event.value.forEach((value, key) => next.set(key, value));
-  }
-  event.next(next);
+  event.next(mergeMaps(target.value, event.value));
 };
 
 /**
@@ -128,7 +100,6 @@ class ValueMapStream extends ValueStream {
    */
   constructor(value, options) {
     super(toMap(value), options);
-    this.fieldSubjects = new Map();
     this.setStages(A_NEXT, mapNextEvents);
     this.setStages(A_SET, setEvents);
 
@@ -160,8 +131,7 @@ class ValueMapStream extends ValueStream {
       if (!(value instanceof Map)) {
         return false;
       }
-      const matches = [...value.keys()].filter((key) => names.includes(key));
-      return matches.length;
+      return !![...value.keys()].find((key) => names.includes(key));
     };
 
     // first - if any changes are sent through set() to the fields of interest
@@ -202,25 +172,6 @@ class ValueMapStream extends ValueStream {
       this.send(A_SET, new Map([[key, value]]));
     }
     return this;
-  }
-
-  /**
-   * adds a stream whose values are transported to a key in the map's value.
-   * @param key {string}
-   * @param stream {Subject} any RxJS subject or a ValueStream/ValueMapStream
-   */
-  addFieldSubject(key, stream) {
-    if (!this.fieldSubjects.has(key)) {
-      this.fieldSubjects.set(key, stream);
-      const sub = stream.subscribe((value) => this.set(key, value, true));
-      this.subscribe({
-        complete() {
-          sub.unsubscribe();
-        },
-      });
-    } else {
-      throw e(`cannot redefine field subject ${key}`, { key, stream, target: this });
-    }
   }
 
   /**
@@ -273,34 +224,6 @@ class ValueMapStream extends ValueStream {
     return this.object;
   }
 
-  _fieldProxy() {
-    return new Proxy(this.fieldSubjects, {
-      get(vms, key) {
-        return vms.get(key);
-      },
-    });
-  }
-
-  /**
-   * a proxy to the values in the value map
-   * @returns {*}
-   */
-  get fields() {
-    if (!(typeof Proxy === 'undefined')) {
-      if (!this._fields) {
-        this._fields = this._fieldProxy();
-      }
-      return this._fields;
-    }
-    return this._fieldObj;
-  }
-
-  get _fieldObj() {
-    const obj = {};
-    this.fieldSubjects.forEach((value, key) => obj[key] = value);
-    return obj;
-  }
-
   delete(key) {
     this.send(A_DELETE, key);
   }
@@ -334,5 +257,7 @@ class ValueMapStream extends ValueStream {
     );
   }
 }
+
+fieldProxy(ValueMapStream);
 
 export default ValueMapStream;

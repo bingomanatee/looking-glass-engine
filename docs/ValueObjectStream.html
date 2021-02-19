@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>JSDoc: Class: ValueStreamFast</title>
+    <title>JSDoc: Class: ValueObjectStream</title>
 
     <script src="scripts/prettify/prettify.js"> </script>
     <script src="scripts/prettify/lang-css.js"> </script>
@@ -17,7 +17,7 @@
 
 <div id="main">
 
-    <h1 class="page-title">Class: ValueStreamFast</h1>
+    <h1 class="page-title">Class: ValueObjectStream</h1>
 
     
 
@@ -28,14 +28,11 @@
 
 <header>
     
-        <h2><span class="attribs"><span class="type-signature"></span></span>ValueStreamFast<span class="signature">(value, options)</span><span class="type-signature"></span></h2>
+        <h2><span class="attribs"><span class="type-signature"></span></span>ValueObjectStream<span class="signature">(value, options)</span><span class="type-signature"></span></h2>
         
-            <div class="class-description">A streaming state system. It has the external features of a BehaviorSubject.
-Unlike ValueStream, ValueStreamBase forgoes events; this means no filtering, finalize,
-or interrupts to the updating of the Streams.
-
-This trades off increased speed and decreased
-memory usse against a more limited feature set.</div>
+            <div class="class-description">ValueObjectStream stores key/values in an object form,
+much like React/state. ValueMapStream was modelled first,
+so there is legacy names in this class with "map" in their name.</div>
         
     
 </header>
@@ -50,7 +47,7 @@ memory usse against a more limited feature set.</div>
     
 
     
-    <h4 class="name" id="ValueStreamFast"><span class="type-signature"></span>new ValueStreamFast<span class="signature">(value, options)</span><span class="type-signature"></span></h4>
+    <h4 class="name" id="ValueObjectStream"><span class="type-signature"></span>new ValueObjectStream<span class="signature">(value, options)</span><span class="type-signature"></span></h4>
     
 
     
@@ -96,7 +93,7 @@ memory usse against a more limited feature set.</div>
             <td class="type">
             
                 
-<span class="param-type">any</span>
+<span class="param-type">Object</span>
 
 
             
@@ -106,7 +103,7 @@ memory usse against a more limited feature set.</div>
 
             
 
-            <td class="description last">the observed value of the stream.</td>
+            <td class="description last"></td>
         </tr>
 
     
@@ -129,7 +126,7 @@ memory usse against a more limited feature set.</div>
 
             
 
-            <td class="description last">config options - mainly relevant in the ValueMapStream subclass</td>
+            <td class="description last"></td>
         </tr>
 
     
@@ -170,7 +167,7 @@ memory usse against a more limited feature set.</div>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="ValueStreamFast.js.html">ValueStreamFast.js</a>, <a href="ValueStreamFast.js.html#line19">line 19</a>
+        <a href="ValueObjectStream.js.html">ValueObjectStream.js</a>, <a href="ValueObjectStream.js.html#line108">line 108</a>
     </li></ul></dd>
     
 
@@ -220,13 +217,13 @@ memory usse against a more limited feature set.</div>
 
         
             
-<h4 class="name" id="value"><span class="type-signature"></span>value<span class="type-signature"></span></h4>
+<h4 class="name" id="my"><span class="type-signature"></span>my<span class="type-signature"></span></h4>
 
 
 
 
 <div class="description">
-    passthrough to the valueStream's value
+    a proxy to the values in the value map
 </div>
 
 
@@ -264,7 +261,69 @@ memory usse against a more limited feature set.</div>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="ValueStreamFast.js.html">ValueStreamFast.js</a>, <a href="ValueStreamFast.js.html#line87">line 87</a>
+        <a href="ValueObjectStream.js.html">ValueObjectStream.js</a>, <a href="ValueObjectStream.js.html#line223">line 223</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+        
+            
+<h4 class="name" id="object"><span class="type-signature"></span>object<span class="type-signature"></span></h4>
+
+
+
+
+<div class="description">
+    returns the value transformed into an Object;
+</div>
+
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="ValueObjectStream.js.html">ValueObjectStream.js</a>, <a href="ValueObjectStream.js.html#line204">line 204</a>
     </li></ul></dd>
     
 
@@ -292,7 +351,7 @@ memory usse against a more limited feature set.</div>
     
 
     
-    <h4 class="name" id="complete"><span class="type-signature"></span>complete<span class="signature">()</span><span class="type-signature"></span></h4>
+    <h4 class="name" id="get"><span class="type-signature"></span>get<span class="signature">(key)</span><span class="type-signature"> &rarr; {*}</span></h4>
     
 
     
@@ -300,95 +359,7 @@ memory usse against a more limited feature set.</div>
 
 
 <div class="description">
-    shuts down the valueStream, freezing its value and preventing updates
-</div>
-
-
-
-
-
-
-
-
-
-
-
-
-
-<dl class="details">
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="ValueStreamFast.js.html">ValueStreamFast.js</a>, <a href="ValueStreamFast.js.html#line102">line 102</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        
-            
-
-    
-
-    
-    <h4 class="name" id="error"><span class="type-signature"></span>error<span class="signature">(error, event)</span><span class="type-signature"> &rarr; {<a href="ValueStream.html">ValueStream</a>|*}</span></h4>
-    
-
-    
-
-
-
-<div class="description">
-    emit an error to subscribes.
+    retrieve a single key
 </div>
 
 
@@ -424,33 +395,15 @@ memory usse against a more limited feature set.</div>
 
         <tr>
             
-                <td class="name"><code>error</code></td>
+                <td class="name"><code>key</code></td>
             
 
             <td class="type">
             
                 
-<span class="param-type">Error</span>
+<span class="param-type">string</span>
 
 
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last"></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>event</code></td>
-            
-
-            <td class="type">
             
             </td>
 
@@ -499,7 +452,7 @@ memory usse against a more limited feature set.</div>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="ValueStreamFast.js.html">ValueStreamFast.js</a>, <a href="ValueStreamFast.js.html#line50">line 50</a>
+        <a href="ValueObjectStream.js.html">ValueObjectStream.js</a>, <a href="ValueObjectStream.js.html#line196">line 196</a>
     </li></ul></dd>
     
 
@@ -535,9 +488,6 @@ memory usse against a more limited feature set.</div>
     </dt>
     <dd>
         
-<span class="param-type"><a href="ValueStream.html">ValueStream</a></span>
-|
-
 <span class="param-type">*</span>
 
 
@@ -556,7 +506,7 @@ memory usse against a more limited feature set.</div>
     
 
     
-    <h4 class="name" id="getValue"><span class="type-signature"></span>getValue<span class="signature">()</span><span class="type-signature"> &rarr; {*}</span></h4>
+    <h4 class="name" id="onField"><span class="type-signature"></span>onField<span class="signature">(fn, name, stage)</span><span class="type-signature"> &rarr; {subscriber}</span></h4>
     
 
     
@@ -564,7 +514,7 @@ memory usse against a more limited feature set.</div>
 
 
 <div class="description">
-    imitating BehaviorSubject's API; returns the current value;
+    watches for changes to a specific field
 </div>
 
 
@@ -573,6 +523,101 @@ memory usse against a more limited feature set.</div>
 
 
 
+
+
+    <h5>Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>fn</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">function</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>name</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>stage</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">a phase code (optional)</td>
+        </tr>
+
+    
+    </tbody>
+</table>
 
 
 
@@ -608,7 +653,7 @@ memory usse against a more limited feature set.</div>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="ValueStreamFast.js.html">ValueStreamFast.js</a>, <a href="ValueStreamFast.js.html#line95">line 95</a>
+        <a href="ValueObjectStream.js.html">ValueObjectStream.js</a>, <a href="ValueObjectStream.js.html#line144">line 144</a>
     </li></ul></dd>
     
 
@@ -644,7 +689,7 @@ memory usse against a more limited feature set.</div>
     </dt>
     <dd>
         
-<span class="param-type">*</span>
+<span class="param-type">subscriber</span>
 
 
     </dd>
@@ -662,7 +707,7 @@ memory usse against a more limited feature set.</div>
     
 
     
-    <h4 class="name" id="next"><span class="type-signature"></span>next<span class="signature">(value)</span><span class="type-signature"></span></h4>
+    <h4 class="name" id="set"><span class="type-signature"></span>set<span class="signature">(key, value, fromSubject)</span><span class="type-signature"> &rarr; {<a href="ValueMapStream.html">ValueMapStream</a>|void}</span></h4>
     
 
     
@@ -670,7 +715,7 @@ memory usse against a more limited feature set.</div>
 
 
 <div class="description">
-    initiate a replacement value
+    set a specific key or set of keys
 </div>
 
 
@@ -702,6 +747,32 @@ memory usse against a more limited feature set.</div>
     </thead>
 
     <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>key</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+|
+
+<span class="param-type">map</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"></td>
+        </tr>
+
     
 
         <tr>
@@ -726,147 +797,26 @@ memory usse against a more limited feature set.</div>
         </tr>
 
     
-    </tbody>
-</table>
-
-
-
-
-
-
-<dl class="details">
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="ValueStreamFast.js.html">ValueStreamFast.js</a>, <a href="ValueStreamFast.js.html#line79">line 79</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        
-            
-
-    
-
-    
-    <h4 class="name" id="pipe"><span class="type-signature"></span>pipe<span class="signature">(&hellip;args)</span><span class="type-signature"> &rarr; {Observable.&lt;unknown>}</span></h4>
-    
-
-    
-
-
-
-<div class="description">
-    allows for post-filtering or augmentation of streaming events
-</div>
-
-
-
-
-
-
-
-
-
-    <h5>Parameters:</h5>
-    
-
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-        <th>Attributes</th>
-        
-
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
 
         <tr>
             
-                <td class="name"><code>args</code></td>
+                <td class="name"><code>fromSubject</code></td>
             
 
             <td class="type">
             
+                
+<span class="param-type">boolean</span>
+
+
+            
             </td>
 
             
-                <td class="attributes">
-                
-
-                
-
-                
-                    &lt;repeatable><br>
-                
-                </td>
-            
 
             
 
-            <td class="description last"></td>
+            <td class="description last">indicates a fieldSubject</td>
         </tr>
 
     
@@ -907,7 +857,7 @@ memory usse against a more limited feature set.</div>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="ValueStreamFast.js.html">ValueStreamFast.js</a>, <a href="ValueStreamFast.js.html#line154">line 154</a>
+        <a href="ValueObjectStream.js.html">ValueObjectStream.js</a>, <a href="ValueObjectStream.js.html#line180">line 180</a>
     </li></ul></dd>
     
 
@@ -943,208 +893,10 @@ memory usse against a more limited feature set.</div>
     </dt>
     <dd>
         
-<span class="param-type">Observable.&lt;unknown></span>
+<span class="param-type"><a href="ValueMapStream.html">ValueMapStream</a></span>
+|
 
-
-    </dd>
-</dl>
-
-    
-
-
-
-
-
-        
-            
-
-    
-
-    
-    <h4 class="name" id="subscribe"><span class="type-signature"></span>subscribe<span class="signature">(onNext, onError, onComplete)</span><span class="type-signature"> &rarr; {Subscription}</span></h4>
-    
-
-    
-
-
-
-<div class="description">
-    Subscribe to updates.
-</div>
-
-
-
-
-
-
-
-
-
-    <h5>Parameters:</h5>
-    
-
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>onNext</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">function</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last"></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>onError</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">function</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last"></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>onComplete</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">function</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last"></td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-
-
-
-
-
-<dl class="details">
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="ValueStreamFast.js.html">ValueStreamFast.js</a>, <a href="ValueStreamFast.js.html#line114">line 114</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<h5>Returns:</h5>
-
-        
-
-
-<dl>
-    <dt>
-        Type
-    </dt>
-    <dd>
-        
-<span class="param-type">Subscription</span>
+<span class="param-type">void</span>
 
 
     </dd>

@@ -6,21 +6,20 @@ import { tap as tapFilter, map } from 'rxjs/operators';
 const tap = require('tap');
 const p = require('../package.json');
 
-const { ValueMapStream, ValueStream } = require('../lib');
+const { ValueObjectStream } = require('../lib');
 
 const initial = Object.freeze(
-  new Map([
-    ['a', 1],
-    ['b', ['alpha', 'beta', 'gamma']],
-  ]),
+  {
+    a: 1,
+    b: ['alpha', 'beta', 'gamma'],
+  },
 );
 
 tap.test(p.name, (suite) => {
-  suite.test('ValueMapStream', (testVS) => {
+  suite.test('ValueObjectStream', (testVS) => {
     testVS.test('constructor', (testVSc) => {
       testVSc.test('basic', (basicTest) => {
-        const basic = new ValueMapStream(new Map(initial));
-
+        const basic = new ValueObjectStream({ ...initial });
         basicTest.same(basic.value, initial);
         basicTest.end();
       });
@@ -29,46 +28,51 @@ tap.test(p.name, (suite) => {
     });
 
     testVS.test('next', (testVSNext) => {
-      const basic = new ValueMapStream(new Map(initial));
-      basic.next(new Map([['a', 2], ['c', 3]]));
+      const basic = new ValueObjectStream({ ...initial });
+      basic.next(
+        { a: 2, c: 3 },
+      );
 
-      testVSNext.same(basic.value, new Map([
-        ['a', 2],
-        ['b', ['alpha', 'beta', 'gamma']],
-        ['c', 3],
-      ]));
+      testVSNext.same(basic.value,
+        {
+          a: 2,
+          b: ['alpha', 'beta', 'gamma'],
+          c: 3,
+        });
 
       testVSNext.end();
     });
 
     testVS.test('set', (testVSNext) => {
-      const basic = new ValueMapStream(new Map(initial));
+      const basic = new ValueObjectStream({ ...initial });
       basic.set('a', 100);
 
-      testVSNext.same(basic.value, new Map([
-        ['a', 100],
-        ['b', ['alpha', 'beta', 'gamma']],
-      ]));
+      testVSNext.same(basic.value,
+        {
+          a: 100,
+          b: ['alpha', 'beta', 'gamma'],
+        });
 
       basic.set('z', 200);
 
-      testVSNext.same(basic.value, new Map([
-        ['a', 100],
-        ['b', ['alpha', 'beta', 'gamma']],
-        ['z', 200],
-      ]));
+      testVSNext.same(basic.value,
+        {
+          a: 100,
+          b: ['alpha', 'beta', 'gamma'],
+          z: 200,
+        });
 
       testVSNext.end();
     });
 
     testVS.test('onField', (afsTest) => {
-      const coord = new ValueMapStream({
+      const coord = new ValueObjectStream({
         x: 0,
         y: 0,
       });
 
       const throwIfNotNumber = (field) => (event) => {
-        if (!(typeof event.value.get(field) === 'number')) {
+        if (!(typeof event.value[field] === 'number')) {
           event.error(new Error(`${field} must be a number`), event);
         }
       };
@@ -86,30 +90,21 @@ tap.test(p.name, (suite) => {
         },
       });
 
-      const e1 = new Map([
-        ['x', 0],
-        ['y', 0],
-      ]);
-      const e2 = new Map([
-        ['x', 2],
-        ['y', 0],
-      ]);
-      const e2y1 = new Map([
-        ['x', 2],
-        ['y', 1],
-      ]);
-      const e3 = new Map([
-        ['x', 4],
-        ['y', 1],
-      ]);
-      const e4 = new Map([
-        ['x', 4],
-        ['y', 3],
-      ]);
-      const e4x6 = new Map([
-        ['x', 6],
-        ['y', 3],
-      ]);
+      const e1 = {
+        x: 0, y: 0,
+      };
+
+      const e2 = {
+        x: 2, y: 0,
+      };
+
+      const e2y1 = { x: 2, y: 1 };
+
+      const e3 = { x: 4, y: 1 };
+
+      const e4 = { x: 4, y: 3 };
+
+      const e4x6 = { x: 6, y: 3 };
 
       afsTest.same(e1, coord.value);
       afsTest.same([], errors);
@@ -167,7 +162,7 @@ tap.test(p.name, (suite) => {
     });
 
     testVS.test('watch', (wTest) => {
-      const coord = new ValueMapStream({
+      const coord = new ValueObjectStream({
         x: 0,
         y: 0,
         z: 0,
@@ -184,37 +179,29 @@ tap.test(p.name, (suite) => {
 
       coord.set(new Map([['z', 1]]));
 
-      const startMap = new Map([
-        ['x', 0],
-        ['y', 0],
-      ]);
-      const nextMap = new Map([
-        ['x', 1],
-        ['y', 0],
-      ]);
-      const thirdMap = new Map([
-        ['x', 1],
-        ['y', 3],
-      ]);
+      const startMap = { x: 0, y: 0 };
+      const nextMap = { x: 1, y: 0 };
+      const thirdMap = { x: 1, y: 3 };
+
       wTest.same(history, [
         startMap,
       ]);
 
-      coord.set(new Map([['x', 1]]));
+      coord.set('x', 1);
 
       wTest.same(history, [
         startMap,
         nextMap,
       ]);
 
-      coord.set(new Map([['z', 2]]));
+      coord.set('z', 2);
 
       wTest.same(history, [
         startMap,
         nextMap,
       ]);
 
-      coord.set(new Map([['y', 3]]));
+      coord.set({ y: 3 });
 
       wTest.same(history, [
         startMap,
@@ -225,7 +212,7 @@ tap.test(p.name, (suite) => {
     });
 
     testVS.test('watch - sequential', (wTest) => {
-      const coord = new ValueMapStream({
+      const coord = new ValueObjectStream({
         x: 0,
         error: '',
       });
@@ -241,44 +228,25 @@ tap.test(p.name, (suite) => {
 
       coord.watch('x')
         .subscribe((value) => {
-          if (value.get('x') % 2) {
+          if (value.x % 2) {
             coord.set('error', 'x must be even');
           } else {
             coord.set('error', '');
           }
         });
 
-      const startMap = new Map([
-        ['x', 0],
-        ['error', ''],
-      ]);
-      const nextMapPre = new Map([
-        ['x', 1],
-        ['error', ''],
-      ]);
-      const nextMap = new Map([
-        ['x', 1],
-        ['error', 'x must be even'],
-      ]);
-      const thirdMapPre = new Map([
-        ['x', 2],
-        ['error', 'x must be even'],
-      ]);
-      const thirdMap = new Map([
-        ['x', 2],
-        ['error', ''],
-      ]);
-      const fourthMap = new Map([
-        ['x', 3],
-        ['error', 'x must be even'],
-      ]);
+      const startMap = { x: 0, error: '' };
+      const nextMapPre = { x: 1, error: '' };
+      const nextMap = { x: 1, error: 'x must be even' };
+      const thirdMapPre = { x: 2, error: 'x must be even' };
+      const thirdMap = { x: 2, error: '' };
 
       wTest.same(history, [
         startMap,
         startMap,
       ]);
 
-      coord.set(new Map([['x', 1]]));
+      coord.set('x', 1);
 
       wTest.same(history, [
         startMap,
@@ -287,7 +255,7 @@ tap.test(p.name, (suite) => {
         nextMap,
       ]);
 
-      coord.set(new Map([['x', 2]]));
+      coord.set('x', 2);
 
       wTest.same(history, [
         startMap,
@@ -302,7 +270,7 @@ tap.test(p.name, (suite) => {
     });
 
     testVS.test('delete', (dTest) => {
-      const coord = new ValueMapStream({
+      const coord = new ValueObjectStream({
         a: 1,
         b: 2,
         c: 3,
@@ -310,7 +278,7 @@ tap.test(p.name, (suite) => {
 
       coord.delete('b');
 
-      dTest.same(coord.object, { a: 1, c: 3 });
+      dTest.same(coord.value, { a: 1, c: 3 });
 
       dTest.end();
     });
@@ -320,8 +288,8 @@ tap.test(p.name, (suite) => {
         new BehaviorSubject(n).pipe(map((value) => Math.round(value)))
       );
 
-      const coord = new ValueMapStream({
-        x: 0, y: 0
+      const coord = new ValueObjectStream({
+        x: 0, y: 0,
       });
 
       coord.addFieldSubject('x', makeRoundNumSubject(0));

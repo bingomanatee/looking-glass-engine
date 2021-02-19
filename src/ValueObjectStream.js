@@ -1,48 +1,27 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="utf-8">
-    <title>JSDoc: Source: ValueMapStream.js</title>
-
-    <script src="scripts/prettify/prettify.js"> </script>
-    <script src="scripts/prettify/lang-css.js"> </script>
-    <!--[if lt IE 9]>
-      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
-    <![endif]-->
-    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
-    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
-</head>
-
-<body>
-
-<div id="main">
-
-    <h1 class="page-title">Source: ValueMapStream.js</h1>
-
-    
-
-
-
-    
-    <section>
-        <article>
-            <pre class="prettyprint source linenums"><code>import { distinctUntilChanged, map } from 'rxjs/operators';
+import { distinctUntilChanged, map } from 'rxjs/operators';
 import lGet from 'lodash/get';
 import isEqual from 'lodash/isEqual';
+import intersection from 'lodash/intersection';
 import flattenDeep from 'lodash/flattenDeep';
 import { BehaviorSubject } from 'rxjs';
 import ValueStream from './ValueStream';
-import fieldProxy from './fieldProxy';
 import {
+  A_DELETE,
+  A_NEXT,
+  A_SET,
+  e,
+  E_COMMIT,
+  E_PRE_MAP_MERGE,
+  E_PRECOMMIT, eqÅ,
+  mapNextEvents,
   setEvents,
-  A_DELETE, A_NEXT, A_SET, E_COMMIT, E_INITIAL, E_PRECOMMIT, E_PRE_MAP_MERGE,
-  mapNextEvents, E_MAP_MERGE, toMap, e, Å, E_RESTRICT,
-  mergeMaps,
 } from './constants';
 import { EventFilter } from './Event';
+import fieldProxy from './fieldProxy';
 import {
   onCommitSet,
-  onDeleteCommit, onInitialNext,
+  onDeleteCommit,
+  onInitialNext,
   onMergeNext,
   onPrecommitSet,
   onRestrictKeyForSet,
@@ -56,31 +35,24 @@ const kas = (aMap) => {
   }
 };
 
-const compareMaps = (map1, map2) => {
-  if (!((map1 instanceof Map) &amp;&amp; (map2 instanceof Map))) {
-    return false;
-  }
-  if (map1.size !== map2.size) return false;
-  if (!map1.size) return true;
-  const key1 = kas(map1);
-  const key2 = kas(map2);
-  if (!((key1 &amp;&amp; key2) &amp;&amp; (key1 === key2))) return false;
-
-  let same = true;
-  map1.forEach((value, field) => {
-    if (!same) return;
-    same = isEqual(value, map2.get(field));
-  });
-  return same;
-};
-
-const SR_FROM_SET = Symbol('action:set');
-
-function onlyMap(evt) {
-  if (!(evt.value instanceof Map)) {
+function intersects(a, b) {
+  return Array.isArray(a) && Array.isArray(b) && intersection(a, b).length;
+}
+function onlyObj(evt) {
+  if (!(evt.value && (typeof evt.value === 'object'))) {
     evt.error('only accepts map values');
   }
 }
+
+const compareMaps = (map1, map2) => {
+  const keys1 = Array.from(Object.keys(map1));
+  const keys2 = Array.from(Object.keys(map2));
+  if (!isEqual(new Set(keys1), new Set(keys2))) return false;
+
+  return keys1.reduce((same, key) => same && map2[key] === map1[key], true);
+};
+
+const SR_FROM_SET = Symbol('action:set');
 
 function onlyOldKeys(event, target) {
   const oldKeys = [...target.value.keys()];
@@ -92,7 +64,16 @@ function onlyOldKeys(event, target) {
 }
 
 const setToNext = (event, target) => {
-  const nextValue = mergeMaps(target.value, event.value);
+  const nextValue = { ...target.value };
+  if (Array.isArray(event.value)) {
+    const list = [...event.value];
+    while (list.length) {
+      const key = list.shift();
+      nextValue[key] = list.shift();
+    }
+  } else {
+    Object.assign(nextValue, event.value);
+  }
   event.complete();
   target.send(A_NEXT, nextValue);
 };
@@ -106,28 +87,35 @@ const deleteKey = (event, target) => {
         target.fieldSubjects.get(key).complete();
         target.fieldSubjects.delete(key);
       }
-      const targetValue = new Map(target.value);
-      targetValue.delete(key);
+      const targetValue = { ...target.value };
+      delete targetValue[key];
       target._valueSubject.next(targetValue);
     },
   });
 };
 
 const mergeNext = (event, target) => {
-  event.next(mergeMaps(target.value, event.value));
+  const next = { ...target.value };
+  Object.assign(next, event.value);
+  event.next(next);
 };
 
 /**
- *
+ * ValueObjectStream stores key/values in an object form,
+ * much like React/state. ValueMapStream was modelled first,
+ * so there is legacy names in this class with "map" in their name.
  */
-class ValueMapStream extends ValueStream {
+class ValueObjectStream extends ValueStream {
   /**
    *
-   * @param value {Map | Object} -- objects are coerced into Maps
+   * @param value {Object}
    * @param options {Object}
    */
   constructor(value, options) {
-    super(toMap(value), options);
+    if (!(typeof value === 'object')) {
+      throw new Error('ValueObjectStream requires an object as a starting value');
+    }
+    super({ ...value }, options);
     this.setStages(A_NEXT, mapNextEvents);
     this.setStages(A_SET, setEvents);
 
@@ -138,9 +126,9 @@ class ValueMapStream extends ValueStream {
   }
 
   _watchSet() {
-    this.when(onlyMap, onPrecommitSet);
+    this.when(onlyObj, onPrecommitSet);
     this.when(mergeNext, onMergeNext);
-    this.when(onlyMap, onInitialNext);
+    this.when(onlyObj, onInitialNext);
     this.when(setToNext, onCommitSet);
     this.when(deleteKey, onDeleteCommit);
   }
@@ -156,10 +144,10 @@ class ValueMapStream extends ValueStream {
   onField(fn, name, stage = E_PRECOMMIT) {
     const names = Array.isArray(name) ? [...name] : [name];
     const ifIntersects = (value) => {
-      if (!(value instanceof Map)) {
+      if (!(value && (typeof value === 'object'))) {
         return false;
       }
-      return !![...value.keys()].find((key) => names.includes(key));
+      return !!names.find((aName) => (aName in value));
     };
 
     // first - if any changes are sent through set() to the fields of interest
@@ -176,12 +164,10 @@ class ValueMapStream extends ValueStream {
 
     const observer = this.when(fn, onStraightNext);
 
-    observer.subscribe({
+    return observer.subscribe({
       complete: () => observer2.complete(),
       error: (err) => observer2.error(err),
     });
-
-    return observer;
   }
 
   /**
@@ -192,12 +178,12 @@ class ValueMapStream extends ValueStream {
    * @returns {ValueMapStream|void}
    */
   set(key, value, fromSubject) {
-    if (key instanceof Map) {
+    if ((typeof key === 'object')) {
       this.send(A_SET, key);
-    } else if (!fromSubject &amp;&amp; this.fieldSubjects.has(key)) {
+    } else if (!fromSubject && this.fieldSubjects.has(key)) {
       this.fieldSubjects.get(key).next(value);
     } else {
-      this.send(A_SET, new Map([[key, value]]));
+      this.send(A_SET, { [key]: value });
     }
     return this;
   }
@@ -208,7 +194,7 @@ class ValueMapStream extends ValueStream {
    * @returns {*}
    */
   get(key) {
-    return this.value.get(key);
+    return this.value[key];
   }
 
   /**
@@ -216,15 +202,7 @@ class ValueMapStream extends ValueStream {
    * @returns {Object}
    */
   get object() {
-    return [...this.value.keys()].reduce((out, key) => {
-      try {
-        // eslint-disable-next-line no-param-reassign
-        out[key] = this.get(key);
-      } catch (err) {
-
-      }
-      return out;
-    }, {});
+    return { ...this.value };
   }
 
   _valueProxy() {
@@ -261,7 +239,7 @@ class ValueMapStream extends ValueStream {
     const filter = typeof fields[fields.length - 1] === 'function' ? fields.pop() : null;
     const initial = new Map();
     fields.forEach((field) => {
-      if (this.value.has(field)) initial.set(field, this.value.get(field));
+      if (field in this.value) initial[field] = this.value[field];
     });
     const receiver = new BehaviorSubject(initial);
     this.on((event) => {
@@ -273,10 +251,10 @@ class ValueMapStream extends ValueStream {
     }, A_NEXT, E_COMMIT);
     return receiver.pipe(
       map((next) => {
-        const newMap = new Map();
+        const newMap = {};
         fields.forEach((field) => {
-          if (next.has(field)) {
-            newMap.set(field, next.get(field));
+          if (field in next) {
+            newMap[field] = next[field];
           }
         });
         return newMap;
@@ -286,29 +264,6 @@ class ValueMapStream extends ValueStream {
   }
 }
 
-fieldProxy(ValueMapStream);
+fieldProxy(ValueObjectStream);
 
-export default ValueMapStream;
-</code></pre>
-        </article>
-    </section>
-
-
-
-
-</div>
-
-<nav>
-    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="Event.html">Event</a></li><li><a href="EventFilter.html">EventFilter</a></li><li><a href="ValueMapStream.html">ValueMapStream</a></li><li><a href="ValueMapStreamFast.html">ValueMapStreamFast</a></li><li><a href="ValueObjectStream.html">ValueObjectStream</a></li><li><a href="ValueStream.html">ValueStream</a></li><li><a href="ValueStreamFast.html">ValueStreamFast</a></li></ul>
-</nav>
-
-<br class="clear">
-
-<footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.6</a> on Fri Feb 19 2021 12:21:33 GMT-0800 (Pacific Standard Time)
-</footer>
-
-<script> prettyPrint(); </script>
-<script src="scripts/linenumber.js"> </script>
-</body>
-</html>
+export default ValueObjectStream;

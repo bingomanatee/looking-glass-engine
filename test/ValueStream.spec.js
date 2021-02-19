@@ -42,7 +42,7 @@ tap.test(p.name, (suite) => {
     });
 
     testVS.test('filter', (testVSFilter) => {
-      const abs = (n, stream) => {
+      const abs = (n) => {
         //   console.log('abs: ', n, context);
         if (typeof n !== 'number') throw new Error(`${n} must be a number`);
         return Math.abs(n);

@@ -6,7 +6,7 @@ LGE 3.4 is a complete rebuild and redesign with its own API / interface.
 
 Here are the primary values of LGE Streams:
 
-* They are **synchronous** - changes input into a stream is immediately reflected in its 
+* They are **synchronous** - changes input into a stream immediately appear in its 
   value property (or ejected out as errors). This means that all the hooks 
   (filter, finalize, etc.) are also synchronous. If you want to do async behavior
   either encase it in an action or perform it outside the valueStream.
@@ -29,11 +29,21 @@ internally or that are thrown by the event system are expressed from that stream
 Unlike most subjects, ValueStreams persist even if errors occur, 
 as those errors route a separate subject. 
 
-### *ValueFastStream* 
+### `ValueFastStream`
 
 A "fast" variant of the ValueStream class; its not filterable or interruptable
 but it has fewer moving pieces than the ValueStream. In most ways its interface
-is identical to ValueStream.
+is identical to ValueStream. The notable methods that Fast streams lack 
+are `onField`, `filter` and `finalize`.
+
+### `ValueObjectStream`
+
+ValueObjectStream uses an object instead of a Map as its fundamental unit of storage.
+While objects aren't as flexible as Map for key/value storage there are applications
+in which a "POJO" is the necessary unit of storage for a particular purpose. 
+
+The API for ValueObjectStream is identical to that of ValueMapStream. 
+(the "Fast" version will come in a future upgrade)
 
 ## constructor(value, {name, filter, finalize}) 
 
@@ -93,25 +103,6 @@ Unlike filter, the function's output is not meaningful.
 
  * to change the next value of the stream, send a new value to event.next(). 
  * To abort the update, call event.error(err). 
-
-note - finalize is a good way to make streams immutable; you can use immer to 
-wrap the content, or wrap it in an immutable.js Record or List. 
-
-```javascript
-import {produce} from 'immer';
-
- const listStream = new ValueStream(produce([], () => {}), {
-        finalize: (event, target) => {
-          event.next(produce(target.value, (list) => {
-            if (Array.isArray(event.value)) {
-              return event.value;
-            }
-            list.push(event.value);
-          }));
-        },
-      });
-
-```
  
 ## ValueMapStream
 
@@ -131,7 +122,7 @@ sets a single field, or several fields at once; merges the new values into
 the current ValueMapStream's Map value. `myStream.set(map)` is functionally
 identical to `myStream.next(map)`
 
-## method` onField((event<Subject>, stream) => {...}, name, stage = E_PRECOMMIT) or ((event<subject>, stream) => {...}, [names]), stage)`
+## method` onField((Event, stream) => {...}, name, stage = E_PRECOMMIT) or ((event<subject>, stream) => {...}, [names]), stage)`
 
 *Not available for ValueFastMapStream*
 
@@ -140,31 +131,38 @@ onField listens for events in which a field is updated (set).
 onField takes a function that accepts an Event. unlike filter, the output is not meaningful.
 See the [Advanced Readme](/ADVANCED_README.md) for details on the Event class.
 
+Note that the event that the hook takes may have field changes to other events.
+If you want to "cancel" an update to a specific field, change the transmitted value
+by resetting its value for a field to the value currently stored by the store (provided as the second argument)
+that are being updated by set
+
  * to change the fields, send a new map (or the same map, altered) to event.next(). 
  * To abort the event, call event.error(err).
  * To abort the update without emitting errors, call event.complete();
  
-onField hooks will not respond to valueMapStream.next(map) wholesale updating of the map; 
- if you want to use onField filters, avoid using .next(map). 
- 
+onField hooks *will* respond to valueMapStream.next(map) wholesale updating of the map.
+That is for each field set, the hook will execute a second time when the entire value 
+is updated (the 'A_NEXT' action). If this is a problem (or you only want to act on one
+or the other circumstance), watct the event's `.action` property. The second update 
+always occurs in the `E_PRE_MAP_MERGE` phase, before the updated values are merged into
+the current value of the stream.
+
 ## method `watch(field, field..., (isEqual: fn?)) or watch([field1, field2...]): Subject`
  
-returns a subject which emits when a particular field or fields are updated. 
-By default it compares field for field via lodash.`isEqual`. If you want to use another comparator
-(as an argument to `rxjs.distinctUntilChanged`) pass the comparator as the last function. 
-
+returns a subject which emits when a particular field or fields change. 
 This is useful when you want to only react to a specific range of field updates
 and ignore any updates to other field, much like the `effects` hook in React. 
 
-The output of this method is a subject which can be `subscribe`'d to; 
-you can save the output and `.unsubscribe()` if you want to cancel the effects of the subscription. 
-
-### A note on sequencing
-
-Watch observers wait for any "next" events to complete before emitting change. This means
-that watch will be notified after any subscriptions to the root object and after any "next"
-event observers. 
+The output of this method is a Subject which can be `subscribe`'d to. 
+Its important to understand that watch(fields...) doesn't do anything directly
+*until* you subscribe to its output; and like all Subject subscriptions you can cancel
+it at any time. 
  
+The definition of "Change" is determined by comparing the watched fields;
+by default it compares before/after field values via lodash.`isEqual`. 
+If you want to use another comparator (as an argument to `rxjs.distinctUntilChanged`)
+pass the comparator as the last function. 
+
 ## property `my`
 
 my is an objectified version of the value; its a proxy to value (where proxies are available)
@@ -328,5 +326,16 @@ class MyClass extends Component {
 Global stores can be provided in context, or simply linked as a module when needed and 
 subscribed to as above. 
 
-If you want to get familiar with interrupt and eventing
-in LGE, review the [ADVANCED_README](/ADVANCED_README.md)
+## Immutability 
+
+Immutable values can be stored in map keys; however if you want to make the entire
+store immutable you should `.pipe()` the store out to a separate Subject that `map()`s
+the map into an immutable context. For what its worth, the root value of 
+a ValueMapStream/ValueObjectStream is always unique, recreated with every `next(value)`.
+
+## Eventing, field subjects and other advanced features
+
+If you want to get familiar with eventing in LGE, review the [ADVANCED_README](/ADVANCED_README.md).
+Eventing is not critical in all use cases; its how `filter(fn)` and `finalize(fn)`
+are managed, and its how you can do other mid-change operations to enforce schema.
+
