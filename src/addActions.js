@@ -1,7 +1,6 @@
 import {
   A_ACTION, e, toMap,
 } from './constants';
-import ValueMapStream from './ValueMapStream';
 
 const SET_RE = /^set(.+)$/i;
 
@@ -10,10 +9,11 @@ const actionProxy = (stream) => new Proxy(stream, {
     if (target._actions.has(name)) {
       return (...args) => target._actions.get(name)(target, ...args);
     }
-    const nameString = `${name}`;
+
     if (typeof target.set === 'function') {
+      const nameString = `${name}`;
       if (SET_RE.test(nameString)) {
-      // eslint-disable-next-line no-unused-vars
+        // eslint-disable-next-line no-unused-vars
         const [setName, restOfName] = SET_RE.exec(nameString);
         const keyLCFirst = restOfName.substr(0, 1).toLowerCase() + restOfName.substr(1);
         if (target.has(keyLCFirst)) return (value) => target.set(keyLCFirst, value);

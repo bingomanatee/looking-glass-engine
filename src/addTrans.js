@@ -2,7 +2,6 @@ import { BehaviorSubject, from, Subject } from 'rxjs';
 import {
   combineLatest, distinctUntilChanged, filter, map,
 } from 'rxjs/operators';
-import Event, { EventFilter } from './Event';
 import {
   E_COMMIT, E_FILTER, E_INITIAL, E_VALIDATE, A_NEXT, E_COMPLETE, A_ANY,
   defaultEventTree, eqÅ, Å, e,
@@ -11,11 +10,12 @@ import {
 import setProxy, { SET_AFTER, SET_BEFORE } from './setProxy';
 
 export default (stream) => Object.assign(stream, {
-  transStream: new BehaviorSubject(new Set()),
+  _transStream: new BehaviorSubject(new Set()),
   addTrans(subject) {
-    const setWithSubject = new Set(stream.transStream.value);
+    if (!subject) subject = new Subject();
+    const setWithSubject = stream._transStream.value;
     setWithSubject.add(subject);
-    stream.transStream.next(setWithSubject);
+    stream._transStream.next(setWithSubject); // it continually emits the same set, with different members
     const unTrans = () => {
       stream.finishTrans(subject);
     };
@@ -23,20 +23,45 @@ export default (stream) => Object.assign(stream, {
       complete: unTrans,
       error: unTrans,
     });
+    return subject;
   },
 
   subscribe(...args) {
-    return combineLatest(stream._valueSubject, stream.transStream)
+    return combineLatest([stream._valueSubject, stream._transStream])
       .pipe(
         map(([value, tSet]) => [value, tSet.size]),
-        filter(([value, count]) => count < 1),
+        filter(([value, size]) => size < 1),
         map(([value]) => value),
+        distinctUntilChanged(),
       ).subscribe(...args);
   },
 
+  doTrans(fn, ...args) {
+    if (!(typeof fn === 'function')) {
+      throw e('doTrans requires a function', this);
+    }
+
+    const subject = this.addTrans();
+
+    let result = null;
+    try {
+      result = fn(subject, ...args);
+    } catch (err) {
+      if (!subject.isStopped) {
+        subject.error(err);
+      } // also completes transaction
+      throw err;
+    }
+    if (!subject.isStopped) {
+      subject.complete();
+    }
+    return result;
+  },
+
   finishTrans(subject) {
-    const setWithoutSubject = new Set(stream.transStream.value);
+    const setWithoutSubject = new Set(stream._transStream.value);
+    if (!setWithoutSubject.has(subject)) return;
     setWithoutSubject.remove(subject);
-    stream.transStream.next(setWithoutSubject);
+    stream._transStream.next(setWithoutSubject);
   },
 });
