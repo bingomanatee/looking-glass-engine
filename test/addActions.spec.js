@@ -4,7 +4,9 @@ import produce from 'immer';
 const tap = require('tap');
 const p = require('../package.json');
 
-const { ValueStream, ValueMapStream, addActions } = require('../lib/index');
+const {
+  ValueStream, ValueMapStream, addActions, Å,
+} = require('../lib/index');
 
 tap.test(p.name, (suite) => {
   suite.test('addActions', (testA) => {
@@ -55,6 +57,42 @@ tap.test(p.name, (suite) => {
       msTest.end();
     });
 
+    testA.test('try', (tryTest) => {
+      const stream = addActions(
+        new ValueStream({ x: 0, y: 0 }),
+        {
+          offset(s, dX, dY) {
+            const next = { ...s.value };
+            next.x += dX;
+            next.y += dY;
+            s.next(next);
+          },
+          magnitude({ value: { x, y } }) {
+            if (typeof x !== 'number') {
+              throw new Error('magnitude - x is not a number');
+            }
+            if (typeof y !== 'number') {
+              throw new Error('magnitude - y is not a number');
+            }
+            return Math.round(Math.sqrt(x ** 2 + y ** 2));
+          },
+        },
+      );
+
+      stream.next({ x: 10, y: 4 });
+      const [err, val] = stream.try.magnitude().list;
+      tryTest.same(val, 11);
+      tryTest.notOk(err);
+
+      stream.next({ x: 'ten', y: 4 });
+      const [err2, val2] = stream.try.magnitude().list;
+
+      tryTest.same(val2, Å);
+      tryTest.same(err2.message, 'magnitude - x is not a number');
+
+      tryTest.end();
+    });
+
     testA.test('response to non-existent actions', (non) => {
       const stream = addActions(
         new ValueStream({ x: 0, y: 0 }),
@@ -85,7 +123,6 @@ tap.test(p.name, (suite) => {
       } catch (err) {
         msg = err.message;
       }
-
 
       non.end();
     });

@@ -1,4 +1,3 @@
-import {EventFilter} from './Event';
 import {
   A_DELETE,
   A_NEXT,
@@ -9,6 +8,7 @@ import {
   E_PRECOMMIT,
   E_RESTRICT
 } from './constants';
+import EventFilter from './EventFilter';
 
 export const onInitialNext = new EventFilter({
   action: A_NEXT,

@@ -5,12 +5,13 @@ import {
   filter, map, tap, switchMap, catchError,
 } from 'rxjs/operators';
 
-import Event, { EventFilter } from './Event';
+import Event from './Event';
 import {
   E_COMMIT, E_PRECOMMIT, E_FILTER, E_INITIAL, E_VALIDATE, A_NEXT, E_COMPLETE, A_ANY,
   defaultEventTree, eqÅ, Å, e,
 } from './constants';
 import ValueStreamFast from './ValueStreamFast';
+import EventFilter from './EventFilter';
 
 const onNextCommit = new EventFilter({
   action: A_NEXT,
@@ -210,6 +211,10 @@ class ValueStream extends ValueStreamFast {
           }
         },
       });
+    if (!event.isStopped) {
+      event.complete();
+    }
+    return event;
   }
 
   /**

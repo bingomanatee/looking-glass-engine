@@ -15,7 +15,8 @@ cost of fewer opportunities to massage the data they manage.
 ## Stages and events
 
 `set` and `next` updates are both executed in a series of stages. 
-An Event is emitted for each stage, containing the value (a map in the case of ValueMapStream). The execution of the desired effect is accomplished with 
+An Event is emitted for each stage, containing the value (a map in the case of ValueMapStream). 
+The execution of the desired effect is accomplished with 
 The transmission of the event's value to the ValueStream/ValueMapStream 
 occurs a hook listener -- generally on the `E_COMMIT` stage - that communicates
 the event's value into the Stream. At any point 
@@ -41,9 +42,9 @@ To properly set a store in response to data change, wait for the event to comple
 before setting additional field values. The best way to do this is to use `.watch(...)`
 listeners, which perform in this matter automatically. 
 
-The best solution you can update the value of the event to include desired side effects in a single
-manifest, by using `event.next(updatedMap)` to include side-effects in a single transaction;
-note, this will side-step event observers. 
+The best solution you can update the value of the event to include desired side effects in a
+single manifest, by using `event.next(updatedMap)`
+to include side-effects in a single transaction;
 
 ## default stages
 
@@ -74,12 +75,6 @@ within a stage hooks execute in order of creation. If you want
 more control over what is executed when, feel free to add extra stages to your stream
 to ensure hooks perform in the order you want. 
 
-### isStopped : boolean
-
-indicates whether the event has completed; in which case any next/error calls would
-themselves throw errors.
-
-
 ## Events
 
 Events are wrappers for a value, stored in the valueSubject property (a BehaviorSubject)
@@ -88,6 +83,11 @@ subscribed to, stopped with an error(err) that will emit through the stream;
 and complete() will suspend their operation silently. note - complete() and error()
 will prevent subsequent stages - but not subsequent stages for the current hook. 
 If you are concerned, check the `event.isStopped` property inside your hooks first. 
+
+### isStopped : boolean
+
+indicates whether the event has completed; in which case any next/error calls would
+themselves throw errors.
 
 ### method: `next(value)`
 
@@ -127,7 +127,12 @@ a reference to the stream that received this event
 
 the value that the event is transmitting. Usually either the core value of a ValueStream
 or a map that is a subset of the values (or a single name/value pair) in the case 
-of a "set" event. 
+of a "set" event.
+
+### notes
+
+if your watchers need to intercommunicate, notes is an optional (lazy) Map that you can use
+to note progress or execution status. 
 
 # Composing Streams with FieldSubjects
 

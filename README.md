@@ -116,13 +116,15 @@ property.
 As with ValueStream, there is a `ValueMapStreamFast` class that manages
 most of the functionality described below without the event middleware. 
 
-## method `set(key, value) or set(Map)`
+### method `set(key, value) or set(Map)`
 
 sets a single field, or several fields at once; merges the new values into 
 the current ValueMapStream's Map value. `myStream.set(map)` is functionally
 identical to `myStream.next(map)`
 
-## method` onField((Event, stream) => {...}, name, stage = E_PRECOMMIT) or ((event<subject>, stream) => {...}, [names]), stage)`
+### method` onField((Event, stream) => {...}, name, stage = E_PRECOMMIT)` 
+
+or `((Event, stream) => {...}, [names]), stage = E_PRECOMMIT)`
 
 *Not available for ValueFastMapStream*
 
@@ -136,18 +138,15 @@ If you want to "cancel" an update to a specific field, change the transmitted va
 by resetting its value for a field to the value currently stored by the store (provided as the second argument)
 that are being updated by set
 
- * to change the fields, send a new map (or the same map, altered) to event.next(). 
+ * to change the fields, send a new map (or the same map, altered) to event.next(newMap). 
  * To abort the event, call event.error(err).
  * To abort the update without emitting errors, call event.complete();
  
-onField hooks *will* respond to valueMapStream.next(map) wholesale updating of the map.
-That is for each field set, the hook will execute a second time when the entire value 
-is updated (the 'A_NEXT' action). If this is a problem (or you only want to act on one
-or the other circumstance), watct the event's `.action` property. The second update 
-always occurs in the `E_PRE_MAP_MERGE` phase, before the updated values are merged into
-the current value of the stream.
+onField hooks *will* respond to valueMapStream.next(map) wholesale updating of the map, 
+IF the value has changed AND the function has not been triggered in the set phase.
+However they will only execute on next OR on individual set - not both. 
 
-## method `watch(field, field..., (isEqual: fn?)) or watch([field1, field2...]): Subject`
+### method `watch(field, field..., (isEqual: fn?)) or watch([field1, field2...]): Subject`
  
 returns a subject which emits when a particular field or fields change. 
 This is useful when you want to only react to a specific range of field updates
@@ -163,7 +162,7 @@ by default it compares before/after field values via lodash.`isEqual`.
 If you want to use another comparator (as an argument to `rxjs.distinctUntilChanged`)
 pass the comparator as the last function. 
 
-## property `my`
+### property `my`
 
 my is an objectified version of the value; its a proxy to value (where proxies are available)
 that allows dot-access to the current maps value; useful for deconstruction or injection to React components.
@@ -188,13 +187,13 @@ The first argument into the method is always a reference to the stream itself.
 The reason that streams don't come with actions inherent is that streams can be nested,
 and its better to add the overhead of actions on a case by case basis.
 
-## binding actions
+### binding actions
 
 The fact that the context (stream) is passed to every action automatically
 obviates the need for "this" to be meaningful. In fact there is no binding
 done in the code of addActions to any of the passed-through methods. 
 
-## addActions(stream, {actions})
+### addActions(stream, {actions})
 
 Actions is an object with function names as keys and functions as its values.
 to update the stream, call methods of that first parameter (next(value), set(key, value), etc).

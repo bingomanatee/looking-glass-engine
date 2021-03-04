@@ -61,6 +61,39 @@ tap.test(p.name, (suite) => {
       testVSNext.end();
     });
 
+    testVS.test('onField -- once', (afsTest) => {
+      const coord = new ValueMapStream({
+        x: 0,
+        y: 0,
+      });
+
+      const double = (field) => (event) => {
+        const map = new Map(event.value);
+        if (!map.has(field)) return;
+        console.log('field', field, 'event', event.action, event.stage);
+        console.log('starting map: ', map);
+        map.set(field, map.get(field) * 2);
+        console.log('doubled', field, '--- map is now ', map);
+        event.next(map);
+      };
+
+      coord.onField(double('x'), 'x');
+      coord.onField(double('y'), 'y');
+
+      coord.set('x', 2);
+
+      afsTest.same(coord.my.x, 2);
+      console.log('---------------- nexting');
+      const update = new Map();
+      update.set('y', 4);
+      coord.next(update);
+      console.log('---------------- DONE nexting');
+
+      afsTest.same(coord.my.y, 6);
+
+      afsTest.end();
+    });
+
     testVS.test('onField', (afsTest) => {
       const coord = new ValueMapStream({
         x: 0,
@@ -321,7 +354,7 @@ tap.test(p.name, (suite) => {
       );
 
       const coord = new ValueMapStream({
-        x: 0, y: 0
+        x: 0, y: 0,
       });
 
       coord.addFieldSubject('x', makeRoundNumSubject(0));

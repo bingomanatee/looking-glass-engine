@@ -5,20 +5,30 @@ import flattenDeep from 'lodash/flattenDeep';
 import { BehaviorSubject } from 'rxjs';
 import ValueStream from './ValueStream';
 import fieldProxy from './fieldProxy';
+import Event from './Event';
 import {
-  setEvents,
-  A_DELETE, A_NEXT, A_SET, E_COMMIT, E_INITIAL, E_PRECOMMIT, E_PRE_MAP_MERGE,
-  mapNextEvents, E_MAP_MERGE, toMap, e, Å, E_RESTRICT,
+  A_DELETE,
+  A_NEXT,
+  A_SET,
+  e,
+  E_COMMIT,
+  E_PRE_MAP_MERGE,
+  E_PRECOMMIT,
+  mapNextEvents,
   mergeMaps,
+  setEvents,
+  toMap, Å,
 } from './constants';
-import { EventFilter } from './Event';
 import {
   onCommitSet,
-  onDeleteCommit, onInitialNext,
+  onDeleteCommit,
+  onInitialNext,
   onMergeNext,
   onPrecommitSet,
   onRestrictKeyForSet,
 } from './triggers';
+import EventFilter from './EventFilter';
+import mapToObject from './mapToObject';
 
 const kas = (aMap) => {
   try {
@@ -128,10 +138,13 @@ class ValueMapStream extends ValueStream {
   onField(fn, name, stage = E_PRECOMMIT) {
     const names = Array.isArray(name) ? [...name] : [name];
     const ifIntersects = (value) => {
+      console.log('--- ifInterSetcs looking for ', names, 'in ', value)
       if (!(value instanceof Map)) {
         return false;
       }
-      return !![...value.keys()].find((key) => names.includes(key));
+      return names.reduce((has, n) => {
+        return has || value.has(n);
+      }, false);
     };
 
     // first - if any changes are sent through set() to the fields of interest
@@ -146,7 +159,10 @@ class ValueMapStream extends ValueStream {
       source: (src) => src !== SR_FROM_SET,
     });
 
-    const observer = this.when(fn, onStraightNext);
+    const observer = this.when((...args) => {
+      if (args[0].value.get('y') === 3) console.log('---- on straight next:', args);
+      fn(...args);
+    }, onStraightNext);
 
     observer.subscribe({
       complete: () => observer2.complete(),
@@ -165,17 +181,25 @@ class ValueMapStream extends ValueStream {
    * @param key {string | map}
    * @param value {any}
    * @param fromSubject {boolean} indicates a fieldSubject
-   * @returns {ValueMapStream|void}
+   * @returns {Event}
    */
   set(key, value, fromSubject) {
     if (key instanceof Map) {
-      this.send(A_SET, key);
-    } else if (!fromSubject && this.fieldSubjects.has(key)) {
-      this.fieldSubjects.get(key).next(value);
-    } else {
-      this.send(A_SET, new Map([[key, value]]));
+      return this.send(A_SET, key);
+    } if (!fromSubject && this.fieldSubjects.has(key)) {
+      const subject = this.fieldSubjects.get(key);
+      const event = new Event(A_SET, new BehaviorSubject(this.get(key)));
+      let err = Å;
+      let newValue = Å;
+
+      const sub = subject.subscribe((v) => newValue = v, (er) => err = er);
+      subject.next(value);
+      if ((newValue !== Å) && !event.isStopped) event.next(newValue);
+      sub.unsubscribe();
+
+      return event;
     }
-    return this;
+    return this.send(A_SET, new Map([[key, value]]));
   }
 
   /**
@@ -192,15 +216,7 @@ class ValueMapStream extends ValueStream {
    * @returns {Object}
    */
   get object() {
-    return [...this.value.keys()].reduce((out, key) => {
-      try {
-        // eslint-disable-next-line no-param-reassign
-        out[key] = this.get(key);
-      } catch (err) {
-
-      }
-      return out;
-    }, {});
+    return mapToObject(this.value);
   }
 
   _valueProxy() {
@@ -228,6 +244,10 @@ class ValueMapStream extends ValueStream {
     return this.object;
   }
 
+  get size() {
+    return this.value.size;
+  }
+
   delete(key) {
     this.send(A_DELETE, key);
   }
@@ -237,7 +257,7 @@ class ValueMapStream extends ValueStream {
     const filter = typeof fields[fields.length - 1] === 'function' ? fields.pop() : null;
     const initial = new Map();
     fields.forEach((field) => {
-      if (this.value.has(field)) initial.set(field, this.value.get(field));
+      if (this.has(field)) initial.set(field, this.get(field));
     });
     const receiver = new BehaviorSubject(initial);
     this.on((event) => {

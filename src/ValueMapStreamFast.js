@@ -1,6 +1,7 @@
 import ValueStreamFast from './ValueStreamFast';
-import { e, mergeMaps, toMap } from './constants';
+import { mergeMaps, toMap } from './constants';
 import fieldProxy from './fieldProxy';
+import mapToObject from './mapToObject';
 
 /**
  *
@@ -51,15 +52,7 @@ class ValueMapStreamFast extends ValueStreamFast {
    * @returns {Object}
    */
   get object() {
-    return [...this.value.keys()].reduce((out, key) => {
-      try {
-        // eslint-disable-next-line no-param-reassign
-        out[key] = this.get(key);
-      } catch (err) {
-
-      }
-      return out;
-    }, {});
+    return mapToObject(this.value);
   }
 
   _valueProxy() {
@@ -85,6 +78,10 @@ class ValueMapStreamFast extends ValueStreamFast {
       return this._myProxy;
     }
     return this.object;
+  }
+
+  get size() {
+    return this.value.size;
   }
 
   /**

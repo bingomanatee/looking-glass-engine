@@ -19,11 +19,11 @@
 
     <h1 class="page-title">Source: Event.js</h1>
 
-    
 
 
 
-    
+
+
     <section>
         <article>
             <pre class="prettyprint source linenums"><code>import isEqual from 'lodash/isEqual';
@@ -78,13 +78,13 @@ class Event {
   }
 
   get value() {
-    if (!this.activeStream) {
+    if (!this.isActive) {
       return Å;
     }
     return this.valueStream.getValue();
   }
 
-  get activeStream() {
+  get isActive() {
     return !this.valueStream.isStopped &amp;&amp; !this.valueStream.hasError;
   }
 
@@ -93,13 +93,13 @@ class Event {
   }
 
   next(value) {
-    if (this.activeStream) {
+    if (this.isActive) {
       this.valueStream.next(value);
     } else throw e('attempt to update a stalled stream', this);
   }
 
   error(error) {
-    if (this.activeStream) {
+    if (this.isActive) {
       this.valueStream.error(error);
     } else {
       console.error('cannot register an error on suspended stream', error, this);

@@ -5,6 +5,7 @@ import intersection from 'lodash/intersection';
 import flattenDeep from 'lodash/flattenDeep';
 import { BehaviorSubject } from 'rxjs';
 import ValueStream from './ValueStream';
+import Event from './Event';
 import {
   A_DELETE,
   A_NEXT,
@@ -14,9 +15,8 @@ import {
   E_PRE_MAP_MERGE,
   E_PRECOMMIT, eqÅ,
   mapNextEvents,
-  setEvents,
+  setEvents, Å,
 } from './constants';
-import { EventFilter } from './Event';
 import fieldProxy from './fieldProxy';
 import {
   onCommitSet,
@@ -26,6 +26,7 @@ import {
   onPrecommitSet,
   onRestrictKeyForSet,
 } from './triggers';
+import EventFilter from './EventFilter';
 
 const kas = (aMap) => {
   try {
@@ -133,6 +134,10 @@ class ValueObjectStream extends ValueStream {
     this.when(deleteKey, onDeleteCommit);
   }
 
+  get size() {
+    return [...this.value.keys()].length;
+  }
+
   /**
    * watches for changes to a specific field
    *
@@ -164,10 +169,12 @@ class ValueObjectStream extends ValueStream {
 
     const observer = this.when(fn, onStraightNext);
 
-    return observer.subscribe({
+    observer.subscribe({
       complete: () => observer2.complete(),
       error: (err) => observer2.error(err),
     });
+
+    return observer;
   }
 
   has(key) {
@@ -183,13 +190,22 @@ class ValueObjectStream extends ValueStream {
    */
   set(key, value, fromSubject) {
     if ((typeof key === 'object')) {
-      this.send(A_SET, key);
-    } else if (!fromSubject && this.fieldSubjects.has(key)) {
-      this.fieldSubjects.get(key).next(value);
-    } else {
-      this.send(A_SET, { [key]: value });
+      return this.send(A_SET, key);
+    } if (!fromSubject && this.fieldSubjects.has(key)) {
+      const subject = this.fieldSubjects.get(key);
+
+      const event = new Event(A_SET, new BehaviorSubject(this.get(key)));
+      let err = Å;
+      let newValue = Å;
+
+      const sub = subject.subscribe((v) => newValue = v, (er) => err = er);
+      subject.next(value);
+      if ((newValue !== Å) && !event.isStopped) event.next(newValue);
+      sub.unsubscribe();
+
+      return event;
     }
-    return this;
+    return this.send(A_SET, { [key]: value });
   }
 
   /**
@@ -243,7 +259,7 @@ class ValueObjectStream extends ValueStream {
     const filter = typeof fields[fields.length - 1] === 'function' ? fields.pop() : null;
     const initial = new Map();
     fields.forEach((field) => {
-      if (field in this.value) initial[field] = this.value[field];
+      if (this.has(field)) initial[field] = this.value[field];
     });
     const receiver = new BehaviorSubject(initial);
     this.on((event) => {
