@@ -50,9 +50,6 @@ class Event {
   }
 
   get value() {
-    if (!this.activeStream) {
-      return Å;
-    }
     return this.valueStream.getValue();
   }
 
@@ -87,11 +84,35 @@ class Event {
     throw e('attempted to subscribe to a stream-less Event', this);
   }
 
+  valueToString() {
+    try {
+      if (this.value === null) return 'null';
+      if (typeof this.value === 'undefined') {
+        return 'undefined';
+      }
+      if (typeof this.value === 'object') {
+        if (this.value instanceof Map) {
+          const entries = [...this.value.entries()];
+          const props = { ...this.value };
+          return JSON.stringify({
+            entries, props,
+          });
+        }
+        if (typeof this.value.toString === 'function') return this.value.toString();
+      }
+
+      return `${this.value}`;
+    } catch (err) {
+      console.log('error in valueToString:', err.message);
+      return `${this.value}`;
+    }
+  }
+
   toString() {
     const list = ['<<'];
     if (this.action !== Å) list.push('action: ', this.action.toString());
     if (this.stage !== Å) list.push('stage:', this.stage.toString());
-    if (this.value !== Å) list.push('value', this.value.toString());
+    if (this.value !== Å) list.push('value', this.valueToString());
     list.push('>>');
     return list.join(' ');
   }
@@ -124,29 +145,29 @@ export class EventFilter {
 
   _initParams({
     action = ABSENT,
-    valueStream = ABSENT,
+    value = ABSENT,
     stage = ABSENT,
   }) {
-    this._initArgs(action, valueStream, stage);
+    this._initArgs(action, value, stage);
   }
 
   _matches(target, key, isRaw) {
     const myValue = lGet(this, key);
-    if (myValue === Å) return true;
+
     if (target instanceof EventFilter) {
       console.error('comparing two EventFilters', this, target);
       return false;
     }
-    if (target instanceof Event) {
-      return this._matches(lGet(target, key), key);
+
+    if (myValue === Å) {
+      return true;
     }
-    if (isRaw) {
-      const subProp = lGet(target, key, Å);
-      if (subProp !== Å) {
-        return this._matches(subProp, key);
-      }
+    if (target instanceof Event) target = lGet(target, key);
+
+    if (typeof myValue === 'function') {
+      const result = myValue(target, this);
+      return result;
     }
-    if (typeof myValue === 'function') return myValue(target, this);
 
     return target === myValue;
   }
@@ -159,14 +180,20 @@ export class EventFilter {
     return this._matches(stage, 'stage', isRaw);
   }
 
-  nameMatches(action, isRaw) {
+  actionMatches(action, isRaw) {
     return this._matches(action, 'action', isRaw);
   }
 
   matches(otherEvent, isRaw) {
-    return this.nameMatches(otherEvent, isRaw)
-      && this.stageMatches(otherEvent, isRaw)
-      && this.valueMatches(otherEvent, isRaw);
+    try {
+      const out = this.actionMatches(otherEvent, isRaw)
+        && this.stageMatches(otherEvent, isRaw)
+        && this.valueMatches(otherEvent, isRaw);
+      return out;
+    } catch (err) {
+      if (this.debug) console.log('match error: ', err.message);
+      return false;
+    }
   }
   // equals
 

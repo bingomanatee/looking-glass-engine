@@ -52,7 +52,7 @@ const compareMaps = (map1, map2) => {
   return keys1.reduce((same, key) => same && map2[key] === map1[key], true);
 };
 
-const SR_FROM_SET = Symbol('action:set');
+class ObjectFromSet extends Object {} // class-signature for data from set;
 
 function onlyOldKeys(event, target) {
   const oldKeys = [...target.value.keys()];
@@ -64,7 +64,9 @@ function onlyOldKeys(event, target) {
 }
 
 const setToNext = (event, target) => {
-  const nextValue = { ...target.value };
+  const nextValue = new ObjectFromSet();
+  Object.assign(nextValue, target.value);
+
   if (Array.isArray(event.value)) {
     const list = [...event.value];
     while (list.length) {
@@ -147,6 +149,9 @@ class ValueObjectStream extends ValueStream {
       if (!(value && (typeof value === 'object'))) {
         return false;
       }
+      if (value instanceof ObjectFromSet) {
+        return false;
+      }
       return !!names.find((aName) => (aName in value));
     };
 
@@ -159,7 +164,6 @@ class ValueObjectStream extends ValueStream {
       action: A_NEXT,
       stage: E_PRE_MAP_MERGE,
       value: ifIntersects,
-      source: (src) => src !== SR_FROM_SET,
     });
 
     const observer = this.when(fn, onStraightNext);

@@ -15,6 +15,7 @@
     "react/no-array-index-key": 1,
     "class-methods-use-this": 0,
     "no-unused-vars": 1,
+    "no-param-reassign": "warn",
     "no-underscore-dangle": 0,
     "jsx-a11y/no-static-element-interactions": 0,
     "import/no-named-as-default": 0,

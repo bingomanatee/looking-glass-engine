@@ -7,6 +7,7 @@ import {
 } from 'rxjs/operators';
 import lGet from 'lodash/get';
 import Event, { EventFilter } from './Event';
+import { NOOP } from './constants';
 
 /**
  * A streaming state system. It has the external features of a BehaviorSubject.
@@ -123,6 +124,8 @@ class ValueStreamFast {
     let failSub;
     if (typeof onError === 'function') {
       failSub = this._errorStream.subscribe(onError);
+    } else {
+      onError = NOOP;
     }
 
     const manifest = {

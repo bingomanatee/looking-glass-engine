@@ -6,15 +6,25 @@ import { BehaviorSubject } from 'rxjs';
 import ValueStream from './ValueStream';
 import fieldProxy from './fieldProxy';
 import {
-  setEvents,
-  A_DELETE, A_NEXT, A_SET, E_COMMIT, E_INITIAL, E_PRECOMMIT, E_PRE_MAP_MERGE,
-  mapNextEvents, E_MAP_MERGE, toMap, e, Å, E_RESTRICT,
+  A_DELETE,
+  A_NEXT,
+  A_SET,
+  e,
+  E_COMMIT,
+  E_PRE_MAP_MERGE,
+  E_PRECOMMIT,
+  mapNextEvents,
   mergeMaps,
+  NOOP,
+  setEvents,
+  SR_FROM_SET,
+  toMap,
 } from './constants';
 import { EventFilter } from './Event';
 import {
   onCommitSet,
-  onDeleteCommit, onInitialNext,
+  onDeleteCommit,
+  onInitialNext,
   onMergeNext,
   onPrecommitSet,
   onRestrictKeyForSet,
@@ -46,8 +56,6 @@ const compareMaps = (map1, map2) => {
   return same;
 };
 
-const SR_FROM_SET = Symbol('action:set');
-
 function onlyMap(evt) {
   if (!(evt.value instanceof Map)) {
     evt.error('only accepts map values');
@@ -65,14 +73,16 @@ function onlyOldKeys(event, target) {
 
 const setToNext = (event, target) => {
   const nextValue = mergeMaps(target.value, event.value);
-  event.complete();
-  target.send(A_NEXT, nextValue);
+  if (!event.isStopped) event.complete();
+  nextValue._$from = SR_FROM_SET;
+  target.next(nextValue);
 };
 
 const deleteKey = (event, target) => {
   const key = event.value;
 
   event.subscribe({
+    error: NOOP,
     complete() {
       if (target.fieldSubjects.has(key)) {
         target.fieldSubjects.get(key).complete();
@@ -131,6 +141,9 @@ class ValueMapStream extends ValueStream {
       if (!(value instanceof Map)) {
         return false;
       }
+      if (value._$from === SR_FROM_SET) {
+        return false;
+      }
       return !![...value.keys()].find((key) => names.includes(key));
     };
 
@@ -139,15 +152,13 @@ class ValueMapStream extends ValueStream {
 
     const observer2 = this.when(fn, onTargets);
 
-    const onStraightNext = new EventFilter({
+    const onNext = new EventFilter({
       action: A_NEXT,
       stage: E_PRE_MAP_MERGE,
       value: ifIntersects,
-      source: (src) => src !== SR_FROM_SET,
     });
 
-    const observer = this.when(fn, onStraightNext);
-
+    const observer = this.when(fn, onNext);
     observer.subscribe({
       complete: () => observer2.complete(),
       error: (err) => observer2.error(err),
@@ -245,6 +256,7 @@ class ValueMapStream extends ValueStream {
         complete: () => {
           receiver.next(event.target.value);
         },
+        error: NOOP,
       });
     }, A_NEXT, E_COMMIT);
     return receiver.pipe(

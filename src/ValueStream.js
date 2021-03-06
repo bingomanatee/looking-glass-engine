@@ -8,7 +8,7 @@ import {
 import Event, { EventFilter } from './Event';
 import {
   E_COMMIT, E_PRECOMMIT, E_FILTER, E_INITIAL, E_VALIDATE, A_NEXT, E_COMPLETE, A_ANY,
-  defaultEventTree, eqÅ, Å, e,
+  defaultEventTree, eqÅ, Å, e, NOOP,
 } from './constants';
 import ValueStreamFast from './ValueStreamFast';
 
@@ -167,9 +167,6 @@ class ValueStream extends ValueStreamFast {
     const observer = this._eventStream.pipe(
       filter((event) => {
         const out = test.matches(event);
-        if (this.debug && out) {
-          console.log('matched', event.toString(), 'to:', fn.toString());
-        }
         return out;
       }),
     );
@@ -177,7 +174,7 @@ class ValueStream extends ValueStreamFast {
     observer.subscribe((event) => {
       if (this.debug) console.log('doing ', event.toString(), fn.toString());
       fn(event, target);
-    });
+    }, NOOP);
 
     return observer;
   }
@@ -204,6 +201,9 @@ class ValueStream extends ValueStreamFast {
       )
       .subscribe({
         next: (ev) => this._eventStream.next(ev),
+        error: (err) => {
+          console.log('error in fromEffect:', err.message);
+        },
         complete() {
           if (!event.isStopped) {
             event.complete();
