@@ -6,15 +6,25 @@ import { BehaviorSubject } from 'rxjs';
 import ValueStream from './ValueStream';
 import fieldProxy from './fieldProxy';
 import {
-  setEvents,
-  A_DELETE, A_NEXT, A_SET, E_COMMIT, E_INITIAL, E_PRECOMMIT, E_PRE_MAP_MERGE,
-  mapNextEvents, E_MAP_MERGE, toMap, e, Å, E_RESTRICT,
+  A_DELETE,
+  A_NEXT,
+  A_SET,
+  e,
+  E_COMMIT,
+  E_PRE_MAP_MERGE,
+  E_PRECOMMIT,
+  mapNextEvents,
   mergeMaps,
+  setEvents,
+  SR_FROM_SET,
+  toMap,
+  Å,
 } from './constants';
 import { EventFilter } from './Event';
 import {
   onCommitSet,
-  onDeleteCommit, onInitialNext,
+  onDeleteCommit,
+  onInitialNext,
   onMergeNext,
   onPrecommitSet,
   onRestrictKeyForSet,
@@ -45,8 +55,6 @@ const compareMaps = (map1, map2) => {
   });
   return same;
 };
-
-const SR_FROM_SET = Symbol('action:set');
 
 function onlyMap(evt) {
   if (!(evt.value instanceof Map)) {
@@ -143,7 +151,10 @@ class ValueMapStream extends ValueStream {
       action: A_NEXT,
       stage: E_PRE_MAP_MERGE,
       value: ifIntersects,
-      source: (src) => src !== SR_FROM_SET,
+      source: (src) => {
+        console.log('straight next -- source:', src);
+        return src !== SR_FROM_SET;
+      },
     });
 
     const observer = this.when(fn, onStraightNext);

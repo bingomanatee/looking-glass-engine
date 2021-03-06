@@ -73,6 +73,7 @@ tap.test(p.name, (suite) => {
 
       const throwIfNotNumber = (field) => (event) => {
         if (!(typeof event.value[field] === 'number')) {
+          console.log('---- event error: ', event);
           event.error(new Error(`${field} must be a number`), event);
         }
       };

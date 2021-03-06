@@ -66,3 +66,5 @@ export const mergeMaps = (...args) => flattenDeep(args).reduce((map, other) => {
   }
   return map;
 }, new Map());
+
+export const SR_FROM_SET = Symbol('action:set');

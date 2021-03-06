@@ -61,6 +61,34 @@ tap.test(p.name, (suite) => {
       testVSNext.end();
     });
 
+    testVS.test('onField - including next', (onField) => {
+      const coord = new ValueMapStream({
+        x: 0,
+        y: 0,
+        zz: 0,
+      });
+      coord._eventStream.subscribe((ev) => {
+        console.log('event: ', ev.toString());
+      });
+      coord.onField((e) => {
+        const map = new Map(e.value);
+        map.set('x', 2 * map.get('x'));
+        e.next(map);
+      }, 'x');
+
+      coord.onField((e) => {
+        const map = new Map(e.value);
+        map.set('y', 2 * map.get('y'));
+        e.next(map);
+      }, 'y');
+
+      coord.set('x', 4);
+
+      onField.same(coord.object, { x: 8, y: 0, zz: 0 });
+
+      onField.end();
+    });
+
     testVS.test('onField', (afsTest) => {
       const coord = new ValueMapStream({
         x: 0,
@@ -321,7 +349,7 @@ tap.test(p.name, (suite) => {
       );
 
       const coord = new ValueMapStream({
-        x: 0, y: 0
+        x: 0, y: 0,
       });
 
       coord.addFieldSubject('x', makeRoundNumSubject(0));

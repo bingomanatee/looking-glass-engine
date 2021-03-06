@@ -15,6 +15,7 @@ import {
   E_PRECOMMIT, eqÅ,
   mapNextEvents,
   setEvents,
+  SR_FROM_SET,
 } from './constants';
 import { EventFilter } from './Event';
 import fieldProxy from './fieldProxy';
@@ -52,8 +53,6 @@ const compareMaps = (map1, map2) => {
   return keys1.reduce((same, key) => same && map2[key] === map1[key], true);
 };
 
-const SR_FROM_SET = Symbol('action:set');
-
 function onlyOldKeys(event, target) {
   const oldKeys = [...target.value.keys()];
   event.value.forEach((value, key) => {
@@ -74,7 +73,7 @@ const setToNext = (event, target) => {
   } else {
     Object.assign(nextValue, event.value);
   }
-  event.complete();
+  if (!event.isStopped) event.complete();
   target.send(A_NEXT, nextValue);
 };
 

@@ -45,7 +45,7 @@ export default (stream, actions) => Object.assign(stream, {
   _actions: toMap(actions),
   addAction(name, fn) {
     if (!(typeof fn === 'function')) {
-      console.error('cannot add ', name, ' -- not a function', fn);
+      console.warn('cannot add ', name, ' -- not a function', fn);
       return stream;
     }
     if (stream._actions.has(name)) {

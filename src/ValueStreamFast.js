@@ -6,7 +6,6 @@ import {
   filter, map, tap, switchMap, catchError,
 } from 'rxjs/operators';
 import lGet from 'lodash/get';
-import Event, { EventFilter } from './Event';
 
 /**
  * A streaming state system. It has the external features of a BehaviorSubject.

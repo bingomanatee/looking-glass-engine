@@ -92,6 +92,12 @@ class ValueStream extends ValueStreamFast {
           catchError(() => fromEffect([Å])),
           filter((anEvent) => anEvent instanceof Event),
         );
+
+      this._$eventStream.subscribe({
+        error(err) {
+          console.log('error in eventStream: ', err.message);
+        },
+      });
     }
 
     return this._$eventStream;
@@ -188,10 +194,16 @@ class ValueStream extends ValueStreamFast {
    * @param value {var}
    * @param stages {stages[]} -- optional array of stages that the event goes through
    */
-  send(action, value, stages) {
+  send(action, value, source = Å, stages) {
     const actionStages = stages || this._eventTree.get(action) || this._eventTree.get(A_ANY);
     const onError = this._errorStream.next.bind(this._errorStream);
-    const event = new Event(action, new BehaviorSubject(value), actionStages[0], this);
+    const valueSubject = new BehaviorSubject(value);
+    valueSubject.subscribe({
+      error: (err) => {
+        console.log('event error---- ', err.message);
+      },
+    });
+    const event = new Event(action, valueSubject, actionStages[0], this, source);
     event.subscribe({ error: onError });
     fromEffect(actionStages)
       .pipe(
@@ -204,6 +216,9 @@ class ValueStream extends ValueStreamFast {
       )
       .subscribe({
         next: (ev) => this._eventStream.next(ev),
+        error: (er) => {
+          this._errorStream.next(er);
+        },
         complete() {
           if (!event.isStopped) {
             event.complete();
