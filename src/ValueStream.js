@@ -38,15 +38,6 @@ class ValueStream extends ValueStreamFast {
     super(value, options);
     this._eventTree = new Map(defaultEventTree);
 
-    this._errorStream = new Subject()
-      .pipe(
-        map((errorDef) => {
-          if (errorDef.error && errorDef.error.message && !errorDef.message) {
-            return { ...errorDef, message: errorDef.error.message };
-          }
-          return errorDef;
-        }),
-      );
     // eslint-disable-next-line no-shadow
     const {
       filter: myFilter, finalize,
@@ -80,21 +71,11 @@ class ValueStream extends ValueStreamFast {
   get _eventSubject() {
     if (!this._$eventSubject) {
       this._$eventSubject = new Subject();
+      this._$eventSubject.subscribe((evt) => {
+        this._lastEvent = evt;
+      }, NOOP);
     }
     return this._$eventSubject;
-  }
-
-  get _eventStream() {
-    if (!this._$eventStream) {
-      this._$eventStream = new Subject()
-        .pipe(
-          switchMap((value) => new BehaviorSubject(value)),
-          catchError(() => fromEffect([Å])),
-          filter((anEvent) => anEvent instanceof Event),
-        );
-    }
-
-    return this._$eventStream;
   }
 
   _watchEvents() {
@@ -119,7 +100,8 @@ class ValueStream extends ValueStreamFast {
         const next = fn(event.value, event, this);
         event.next(next);
       } catch (error) {
-        event.error(error);
+        if (this.debugFilter) console.log('error thrown in filter:', error, 'in event', event);
+        event.error(error, event);
       }
     }), A_NEXT, E_FILTER);
   }
@@ -164,7 +146,7 @@ class ValueStream extends ValueStreamFast {
 
     const target = this;
 
-    const observer = this._eventStream.pipe(
+    const observer = this._eventSubject.pipe(
       filter((event) => {
         const out = test.matches(event);
         return out;
@@ -187,7 +169,7 @@ class ValueStream extends ValueStreamFast {
    */
   send(action, value, stages) {
     const actionStages = stages || this._eventTree.get(action) || this._eventTree.get(A_ANY);
-    const onError = this._errorStream.next.bind(this._errorStream);
+    const onError = this._errorSubject.next.bind(this._errorSubject);
     const event = new Event(action, new BehaviorSubject(value), actionStages[0], this);
     event.subscribe({ error: onError });
     fromEffect(actionStages)
@@ -200,7 +182,7 @@ class ValueStream extends ValueStreamFast {
         filter((ev) => !ev.isStopped),
       )
       .subscribe({
-        next: (ev) => this._eventStream.next(ev),
+        next: (ev) => this._eventSubject.next(ev),
         error: (err) => {
           console.log('error in fromEffect:', err.message);
         },
@@ -210,6 +192,7 @@ class ValueStream extends ValueStreamFast {
           }
         },
       });
+    return event;
   }
 
   /**

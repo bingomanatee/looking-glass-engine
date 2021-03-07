@@ -18,7 +18,7 @@ import {
   NOOP,
   setEvents,
   SR_FROM_SET,
-  toMap,
+  toMap, Å,
 } from './constants';
 import { EventFilter } from './Event';
 import {
@@ -179,14 +179,39 @@ class ValueMapStream extends ValueStream {
    * @returns {ValueMapStream|void}
    */
   set(key, value, fromSubject) {
-    if (key instanceof Map) {
-      this.send(A_SET, key);
-    } else if (!fromSubject && this.fieldSubjects.has(key)) {
-      this.fieldSubjects.get(key).next(value);
-    } else {
-      this.send(A_SET, new Map([[key, value]]));
+    const target = this;
+    try {
+      if (key instanceof Map) {
+        return this.send(A_SET, key);
+      } if (!fromSubject && this.fieldSubjects.has(key)) {
+        this._lastEvent = null;
+        this._lastError = null;
+        const fSub = this.fieldSubjects.get(key);
+        fSub._lastError = null;
+        fSub._lastEvent = null;
+        fSub.next(value);
+
+        let out = this._lastEvent;
+        if (fSub._lastError && !(out && out.thrownError)) {
+          if (fSub._lastEvent && fSub._lastEvent.thrownError) {
+            out = fSub._lastEvent;
+          } else {
+            out = { thrownError: fSub._lastError };
+          }
+        }
+        if (out) {
+          try {
+            const a = out.value; // will throw if error present in stream.
+          } catch {
+            return { value: Å, thrownError: out.thrownError };
+          }
+        }
+        return out;
+      }
+      return this.send(A_SET, new Map([[key, value]]));
+    } catch (err) {
+      console.log('error in set:', err);
     }
-    return this;
   }
 
   /**

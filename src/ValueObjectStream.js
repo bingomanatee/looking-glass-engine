@@ -14,7 +14,7 @@ import {
   E_PRE_MAP_MERGE,
   E_PRECOMMIT, eqÅ,
   mapNextEvents,
-  setEvents,
+  setEvents, Å,
 } from './constants';
 import { EventFilter } from './Event';
 import fieldProxy from './fieldProxy';
@@ -187,11 +187,33 @@ class ValueObjectStream extends ValueStream {
    */
   set(key, value, fromSubject) {
     if ((typeof key === 'object')) {
-      this.send(A_SET, key);
+      return this.send(A_SET, key);
     } else if (!fromSubject && this.fieldSubjects.has(key)) {
-      this.fieldSubjects.get(key).next(value);
+      this._lastEvent = null;
+      this._lastError = null;
+      const fSub = this.fieldSubjects.get(key);
+      fSub._lastError = null;
+      fSub._lastEvent = null;
+      fSub.next(value);
+
+      let out = this._lastEvent;
+      if (fSub._lastError && !(out && out.thrownError)) {
+        if (fSub._lastEvent && fSub._lastEvent.thrownError) {
+          out = fSub._lastEvent;
+        } else {
+          out = { thrownError: fSub._lastError };
+        }
+      }
+      if (out) {
+        try {
+          const a = out.value; // will throw if error present in stream.
+        } catch {
+          return { value: Å, thrownError: out.thrownError };
+        }
+      }
+      return out;
     } else {
-      this.send(A_SET, { [key]: value });
+      return this.send(A_SET, { [key]: value });
     }
     return this;
   }

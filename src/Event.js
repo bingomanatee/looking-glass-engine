@@ -50,7 +50,15 @@ class Event {
   }
 
   get value() {
-    return this.valueStream.getValue();
+    try {
+      return this.valueStream.getValue();
+    } catch (err) {
+      return Å;
+    }
+  }
+
+  get thrownError() {
+    return this.valueStream.thrownError;
   }
 
   get activeStream() {

@@ -192,3 +192,21 @@ The only way to remove a key
 is `.delete(key)`. `delete(key)` *also deletes field subjects; so if you really need to 
 redefine a fieldSubject on the fly is by deleting the field/key entirely and re-setting 
 the fieldSubject with `.addFieldSubject`
+
+## listening to set results *experimental feature*
+
+Setting a value in a ValueMapStream or ValueObjectStream may OR MAY NOT result in that stream 
+having that value. Depending on the filters present in the map, or in a fieldSubject,
+the value can be changed en route, or rejected. 
+
+How do you know your set was successful and what the current value is? well `set(key, value)`
+and by extension, `myStore.do.setX(value)` return the *event* that was used to update the
+value. this event has two properties: value and thrownError that can be examined.
+
+* if **thrownError** is _present_, then the value was probably kept to its previous one 
+  (and that is not going to be the value of the event's value).
+* If **thrownError** is _not present_ the event's value should be the current value of that field;
+  it will be contained in a map/object to represent how it was merged into the current value of the map.
+  
+
+

@@ -25,21 +25,31 @@ class ValueStreamFast {
    */
   constructor(value, options = {}) {
     this._valueSubject = new BehaviorSubject(value);
-    this._errorStream = new Subject()
-      .pipe(
-        map((errorDef) => {
-          if (errorDef.error && errorDef.error.message && !errorDef.message) {
-            return { ...errorDef, message: errorDef.error.message };
-          }
-          return errorDef;
-        }),
-      );
     // eslint-disable-next-line no-shadow
     const {
       name, debug = false, finalize,
     } = options;
     this.name = name || (`state_${Math.random()}`);
     this.debug = debug;
+  }
+
+  get _errorSubject() {
+    if (!this._$errorSubject) {
+      this._$errorSubject = new Subject()
+        .pipe(
+          map((errorDef) => {
+            if (errorDef.error && errorDef.error.message && !errorDef.message) {
+              return { ...errorDef, message: errorDef.error.message };
+            }
+            return errorDef;
+          }),
+        );
+
+      this._$errorSubject.subscribe((er) => {
+        if (er) this._lastError = er;
+      }, NOOP);
+    }
+    return this._$errorSubject;
   }
 
   /**
@@ -50,9 +60,9 @@ class ValueStreamFast {
    */
   error(error, event) {
     if (lGet(error, 'error')) {
-      this._errorStream.next({ ...error, target: this });
+      this._errorSubject.next({ ...error, target: this });
     } else {
-      this._errorStream.next({
+      this._errorSubject.next({
         target: this,
         event,
         error,
@@ -102,7 +112,7 @@ class ValueStreamFast {
    */
   complete() {
     this._valueSubject.complete();
-    this._errorStream.complete();
+    this._errorSubject.complete();
   }
 
   /**
@@ -123,7 +133,7 @@ class ValueStreamFast {
 
     let failSub;
     if (typeof onError === 'function') {
-      failSub = this._errorStream.subscribe(onError);
+      failSub = this._errorSubject.subscribe(onError);
     } else {
       onError = NOOP;
     }

@@ -1,9 +1,10 @@
+import { distinctUntilChanged } from 'rxjs/operators';
 import { e } from './constants';
 
 function _fieldProxy(target) {
   return new Proxy(target, {
     get(tgt, key) {
-      console.log('target: ', tgt, 'target fieldSubjects', tgt.fieldSubjects)
+      console.log('target: ', tgt, 'target fieldSubjects', tgt.fieldSubjects);
       if (!tgt.fieldSubjects.has(key)) console.log('attempt to get undefined fieldSubject', key);
       return tgt.fieldSubjects.get(key);
     },
@@ -13,7 +14,8 @@ function _fieldProxy(target) {
 function addFn(key, stream) {
   if (!this.fieldSubjects.has(key)) {
     this.fieldSubjects.set(key, stream);
-    const sub = stream.subscribe((value) => this.set(key, value, true));
+    const sub = stream.pipe(distinctUntilChanged())
+      .subscribe((value) => this.set(key, value, true));
     this.subscribe({
       complete() {
         sub.unsubscribe();
