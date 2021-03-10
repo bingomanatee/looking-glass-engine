@@ -164,9 +164,9 @@ class ValueStream extends ValueStreamFast {
   send(action, value, stages) {
     const actionStages = stages || this._eventTree.get(action) || this._eventTree.get(A_ANY);
     const onError = this._errorSubject.next.bind(this._errorSubject);
-    const event = new Event({
+    const event = new Event(
+      value,{
       action,
-      value,
       stages: actionStages[0],
       target: this,
     });

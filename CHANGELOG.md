@@ -81,3 +81,7 @@ Added a ValueObjectStream for when stores' fundamental model must
 be maintained as an object model. (made under the hood changes 
 to fieldSubjects)
 
+# 3.4.16
+
+refactored events to be straightforward BehaviorSubject extensions. 
+replaced EventFilters with functional approach. 

@@ -9,12 +9,11 @@ const { Event, ABSENT, matchEvent } = require('../lib/index');
 tap.test(p.name, (suite) => {
   suite.test('Event', (event) => {
     event.test('constructor', (con) => {
-
       con.test('params', (params) => {
         const target = Symbol('target');
 
-        const ev = new Event({
-          action: 'doThing', value: 3, stage: 'alpha', target,
+        const ev = new Event(3, {
+          action: 'doThing', stage: 'alpha', target,
         });
 
         params.same(ev.action, 'doThing', 'action is set');
@@ -30,8 +29,8 @@ tap.test(p.name, (suite) => {
     event.test('changing stage', (params) => {
       const target = Symbol('target');
 
-      const ev = new Event({
-        action: 'doThing', value: 3, stage: 'alpha', target,
+      const ev = new Event(3, {
+        action: 'doThing', stage: 'alpha', target,
       });
 
       ev.stage = 'beta';
@@ -45,8 +44,8 @@ tap.test(p.name, (suite) => {
 
     event.test('error', (params) => {
       const target = Symbol('target');
-      const ev = new Event({
-        action: 'doThing', value: 3, stage: 'alpha', target,
+      const ev = new Event(3, {
+        action: 'doThing', stage: 'alpha', target,
       });
 
       ev.error(new Error('I failed'));

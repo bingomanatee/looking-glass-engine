@@ -13,8 +13,8 @@ class Event extends BehaviorSubject {
    *
    * @param Object {any}
    */
-  constructor(params) {
-    super(params.value);
+  constructor(value, params) {
+    super(value);
     this._initParams(params);
   }
 
@@ -26,18 +26,36 @@ class Event extends BehaviorSubject {
     this.action = action;
     this.stage = stage;
     this.target = target;
-    this.completed = [];
+  }
+
+  get completed() {
+    if (!this._completed) this._completed = new Set();
+    return this._completed;
   }
 
   set stage(v) {
-    if (this.stage) this.completed.push(this.stage);
+    this.completed.add(this.stage);
     this._stage = v;
+  }
+
+  complete() {
+    try {
+      this.completed.add(this.stage);
+      super.complete();
+    } catch (err) {
+      super.delete(this.stage);
+      throw err;
+    }
   }
 
   get stage() {
     return this._stage;
   }
 
+  /**
+   * preventing value from throwing on completed stream
+   * @returns {string|T}
+   */
   get value() {
     try {
       return this.getValue();
