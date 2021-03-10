@@ -2,7 +2,7 @@ import isEqual from 'lodash/isEqual';
 import lGet from 'lodash/get';
 import { BehaviorSubject } from 'rxjs';
 import { ABSENT, Å, e } from './constants';
-
+import matchEvent from './matchEvent';
 /**
  * Event is a subject that is emitted through a staging sequence
  * to effect change on ValueStreams. Its value can be updated on the fly by listeners
@@ -137,116 +137,5 @@ Event.toEvent = (data) => {
   if (Array.isArray(data)) return new Event(...data);
   return new Event(data);
 };
-/**
- * this is a class that determines whether an broadcast matches a pattern.
- */
-export class EventFilter {
-  constructor(action, value, stage, target) {
-    if (typeof action === 'object') {
-      this._initParams(action);
-    } else {
-      this._initArgs(action, value, stage, target);
-    }
-  }
-
-  _initArgs(action = Å, value = Å, stage = Å, target = Å) {
-    this.action = action;
-    this.value = value;
-    this.stage = stage;
-    this.target = target;
-  }
-
-  _initParams({
-    action = ABSENT,
-    value = ABSENT,
-    stage = ABSENT,
-  }) {
-    this._initArgs(action, value, stage);
-  }
-
-  _matches(target, key, isRaw) {
-    const myValue = lGet(this, key);
-
-    if (target instanceof EventFilter) {
-      console.error('comparing two EventFilters', this, target);
-      return false;
-    }
-
-    if (myValue === Å) {
-      return true;
-    }
-    if (target instanceof Event) target = lGet(target, key);
-
-    if (typeof myValue === 'function') {
-      const result = myValue(target, this);
-      return result;
-    }
-
-    return target === myValue;
-  }
-
-  valueMatches(value, isRaw) {
-    return this._matches(value, 'value', isRaw);
-  }
-
-  stageMatches(stage, isRaw) {
-    return this._matches(stage, 'stage', isRaw);
-  }
-
-  actionMatches(action, isRaw) {
-    return this._matches(action, 'action', isRaw);
-  }
-
-  matches(otherEvent, isRaw) {
-    try {
-      const out = this.actionMatches(otherEvent, isRaw)
-        && this.stageMatches(otherEvent, isRaw)
-        && this.valueMatches(otherEvent, isRaw);
-      return out;
-    } catch (err) {
-      if (this.debug) console.log('match error: ', err.message);
-      return false;
-    }
-  }
-  // equals
-
-  _equals(target, key, isRaw) {
-    if (target instanceof EventFilter) {
-      console.error('comparing two EventFilters', this, target);
-      return false;
-    }
-    if (target instanceof Event) {
-      return this._equals(lGet(target, key, ABSENT), key);
-    }
-    if (isRaw) {
-      const subProp = lGet(target, key, ABSENT);
-      if (subProp !== ABSENT) {
-        return this._equals(subProp, key);
-      }
-    }
-    if (typeof this[key] === 'function') return this[key](target, this);
-    return isEqual(lGet(this, key), target);
-  }
-
-  valueEquals(value, isRaw) {
-    return this._equals(value, 'value', isRaw);
-  }
-
-  stageEquals(stage, isRaw) {
-    return this._equals(stage, 'stage', isRaw);
-  }
-
-  nameEquals(action, isRaw) {
-    return this._equals(action, 'action', isRaw);
-  }
-
-  equals(otherEvent, isRaw) {
-    return this.nameEquals(otherEvent, isRaw)
-      && this.stageEquals(otherEvent, isRaw)
-      && this.valueEquals(otherEvent, isRaw);
-  }
-}
-
-Event.EventFilter = EventFilter;
 
 export default Event;

@@ -1,9 +1,10 @@
 /* eslint-disable camelcase */
-import { produce } from 'immer';
-import { BehaviorSubject, Subject } from 'rxjs';
-import { tap as tapFilter, map } from 'rxjs/operators';
-
+const { BehaviorSubject, Subject } = require('rxjs');
+const { tap: tapFilter, map } = require('rxjs/operators');
 const tap = require('tap');
+const { produce } = require('immer');
+const mergeMaps = require('../src/mergeMaps');
+
 const p = require('../package.json');
 
 const { ValueObjectStream } = require('../lib');

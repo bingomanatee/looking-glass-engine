@@ -14,13 +14,12 @@ import {
   E_PRE_MAP_MERGE,
   E_PRECOMMIT,
   mapNextEvents,
-  mergeMaps,
   NOOP,
   setEvents,
   SR_FROM_SET,
   toMap, Å,
 } from './constants';
-import { EventFilter } from './Event';
+
 import {
   onCommitSet,
   onDeleteCommit,
@@ -29,6 +28,8 @@ import {
   onPrecommitSet,
   onRestrictKeyForSet,
 } from './triggers';
+import matchEvent from './matchEvent';
+import mergeMaps from './mergeMaps';
 
 const kas = (aMap) => {
   try {
@@ -148,11 +149,13 @@ class ValueMapStream extends ValueStream {
     };
 
     // first - if any changes are sent through set() to the fields of interest
-    const onTargets = new EventFilter(A_SET, ifIntersects, stage);
+    const onTargets = matchEvent({
+      action: A_SET, value: ifIntersects, stage,
+    });
 
     const observer2 = this.when(fn, onTargets);
 
-    const onNext = new EventFilter({
+    const onNext = matchEvent({
       action: A_NEXT,
       stage: E_PRE_MAP_MERGE,
       value: ifIntersects,

@@ -62,14 +62,14 @@ export default (...args) => {
         console.log('matchEvent error with ', fn.toString(), 'on', eventProp);
         result = false;
       }
-      if (true || typeof tests.get('value') === 'function' && event.target && event.target.debug) {
+      if (typeof tests.get('value') === 'function' && event.target && event.target.debug) {
         console.log('test of ', key, 'result ', result, 'for', event.toString());
       }
       return result;
     }, true);
 
-    if (true || typeof tests.get('value') === 'function' && event.target && event.target.debug) {
-      console.log('----- matchEvent:     final result:', good, 'for',  event);
+    if (typeof tests.get('value') === 'function' && event.target && event.target.debug) {
+      console.log('----- matchEvent:     final result:', good, 'for', event);
     }
     return good;
   }, { tests, props });

@@ -1,6 +1,7 @@
 import ValueStreamFast from './ValueStreamFast';
-import { e, mergeMaps, toMap } from './constants';
+import { e, toMap } from './constants';
 import fieldProxy from './fieldProxy';
+import mergeMaps from './mergeMaps';
 
 /**
  *

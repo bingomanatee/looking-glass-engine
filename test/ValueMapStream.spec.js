@@ -1,13 +1,13 @@
 /* eslint-disable camelcase */
 
-import { BehaviorSubject, Subject } from 'rxjs';
-import { tap as tapFilter, map } from 'rxjs/operators';
-import { mergeMaps } from '../src/constants';
-
+const { BehaviorSubject, Subject } = require('rxjs');
+const { tap: tapFilter, map } = require('rxjs/operators');
 const tap = require('tap');
+const mergeMaps = require('../src/mergeMaps');
+
 const p = require('../package.json');
 
-const { ValueMapStream, ValueStream } = require('../lib');
+const { ValueMapStream } = require('../lib');
 
 const initial = Object.freeze(
   new Map([
@@ -67,6 +67,12 @@ tap.test(p.name, (suite) => {
         const coord = new ValueMapStream({
           x: 0,
           y: 0,
+        });
+
+        coord.subscribe({
+          error(err) {
+            console.log('stream error:', err);
+          },
         });
 
         coord.onField((e) => {

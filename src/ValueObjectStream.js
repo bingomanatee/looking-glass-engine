@@ -16,7 +16,7 @@ import {
   mapNextEvents,
   setEvents, Å,
 } from './constants';
-import { EventFilter } from './Event';
+
 import fieldProxy from './fieldProxy';
 import {
   onCommitSet,
@@ -26,6 +26,7 @@ import {
   onPrecommitSet,
   onRestrictKeyForSet,
 } from './triggers';
+import matchEvent from './matchEvent';
 
 const kas = (aMap) => {
   try {
@@ -156,11 +157,13 @@ class ValueObjectStream extends ValueStream {
     };
 
     // first - if any changes are sent through set() to the fields of interest
-    const onTargets = new EventFilter(A_SET, ifIntersects, stage);
+    const onTargets = matchEvent({
+      action: A_SET, value: ifIntersects, stage,
+    });
 
     const observer2 = this.when(fn, onTargets);
 
-    const onStraightNext = new EventFilter({
+    const onStraightNext = matchEvent({
       action: A_NEXT,
       stage: E_PRE_MAP_MERGE,
       value: ifIntersects,
@@ -188,7 +191,7 @@ class ValueObjectStream extends ValueStream {
   set(key, value, fromSubject) {
     if ((typeof key === 'object')) {
       return this.send(A_SET, key);
-    } else if (!fromSubject && this.fieldSubjects.has(key)) {
+    } if (!fromSubject && this.fieldSubjects.has(key)) {
       this._lastEvent = null;
       this._lastError = null;
       const fSub = this.fieldSubjects.get(key);
@@ -212,9 +215,9 @@ class ValueObjectStream extends ValueStream {
         }
       }
       return out;
-    } else {
-      return this.send(A_SET, { [key]: value });
     }
+    return this.send(A_SET, { [key]: value });
+
     return this;
   }
 

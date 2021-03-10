@@ -1,26 +1,13 @@
-import {
-  BehaviorSubject, from as fromEffect, Subject, from,
-} from 'rxjs';
-import {
-  filter, map, tap, switchMap, catchError,
-} from 'rxjs/operators';
+import { BehaviorSubject, from as fromEffect, Subject } from 'rxjs';
+import { filter, map } from 'rxjs/operators';
 
-import Event, { EventFilter } from './Event';
+import Event from './Event';
 import {
-  E_COMMIT, E_PRECOMMIT, E_FILTER, E_INITIAL, E_VALIDATE, A_NEXT, E_COMPLETE, A_ANY,
-  defaultEventTree, eqÅ, Å, e, NOOP,
+  A_ANY, A_NEXT, defaultEventTree, e, E_FILTER, NOOP, Å,
 } from './constants';
 import ValueStreamFast from './ValueStreamFast';
-
-const onNextCommit = new EventFilter({
-  action: A_NEXT,
-  stage: E_COMMIT,
-});
-
-const onPreCommitNext = new EventFilter({
-  action: A_NEXT,
-  stage: E_PRECOMMIT,
-});
+import { onNextCommit, onPreCommitNext } from './triggers';
+import matchEvent from './matchEvent';
 
 /**
  * A streaming state system. It has the external features of a BehaviorSubject.
@@ -120,10 +107,10 @@ class ValueStream extends ValueStreamFast {
     if (typeof fn !== 'function') {
       throw e('on() requires function', fn);
     }
-    if (onAction instanceof EventFilter) {
+    if ((typeof onAction === 'function')) {
       return this.when(fn, onAction);
     }
-    const test = new EventFilter({
+    const test = matchEvent({
       action: onAction,
       stage: onStage,
       value: onValue,
@@ -135,27 +122,34 @@ class ValueStream extends ValueStreamFast {
   /**
    *
    * @param fn {function}
-   * @param test {EventFilter}
+   * @param test {function}
    * @returns {subscriber}
    */
   when(fn, test) {
     if (!(typeof fn === 'function')) {
       throw e('when() requires function', fn);
     }
-    if (!(test instanceof EventFilter)) throw e('cannot call when() without a formal event filter', test);
 
     const target = this;
-
     const observer = this._eventSubject.pipe(
       filter((event) => {
-        const out = test.matches(event);
-        return out;
+        try {
+          return test(event);
+        } catch (err) {
+          console.log('filter error: ', err);
+          event.error(err);
+          return false;
+        }
       }),
     );
 
     observer.subscribe((event) => {
       if (this.debug) console.log('doing ', event.toString(), fn.toString());
-      fn(event, target);
+      try {
+        fn(event, target);
+      } catch (err) {
+        event.error(err);
+      }
     }, NOOP);
 
     return observer;

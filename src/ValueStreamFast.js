@@ -6,7 +6,7 @@ import {
   filter, map, tap, switchMap, catchError,
 } from 'rxjs/operators';
 import lGet from 'lodash/get';
-import Event, { EventFilter } from './Event';
+import Event from './Event';
 import { NOOP } from './constants';
 
 /**
