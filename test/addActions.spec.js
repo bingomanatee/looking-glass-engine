@@ -132,6 +132,27 @@ tap.test(p.name, (suite) => {
       feedback.end();
     });
 
+    testA.test('throwing in an action', (ta) => {
+      const stream = addActions(
+        new ValueMapStream({ x: 0, y: 0 }),
+        {
+          angle(str) {
+            if (str.my.x === 0 && str.my.y === 0) throw new Error('cannot get angle from origin');
+            return Math.atan2(str.my.y, str.my.x);
+          },
+        },
+      );
+
+      try {
+        const magnitude = stream.do.angle();
+        console.log('magnitude:', magnitude);
+      } catch (err) {
+        ta.same(err.message, 'cannot get angle from origin', 'action throws');
+      }
+
+      ta.end();
+    });
+
     testA.end();
   });
 

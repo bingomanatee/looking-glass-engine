@@ -1,5 +1,6 @@
 import isEqual from 'lodash/isEqual';
 import lGet from 'lodash/get';
+import { BehaviorSubject } from 'rxjs';
 import { ABSENT, Å, e } from './constants';
 
 /**
@@ -77,6 +78,10 @@ class Event {
 
   error(error) {
     if (this.activeStream) {
+      if (this.valueStream === ABSENT) {
+        console.warn('attempting to throw error on absent stram', error);
+        throw error;
+      }
       this.valueStream.error(error);
     } else {
       console.error('cannot register an error on suspended stream', error, this);
@@ -127,7 +132,7 @@ class Event {
 }
 
 Event.toEvent = (data) => {
-  if (!data) return new Event({});
+  if (!data) throw new Error('toEvent requires data');
   if (data instanceof Event) return data;
   if (Array.isArray(data)) return new Event(...data);
   return new Event(data);
