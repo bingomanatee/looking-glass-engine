@@ -75,13 +75,11 @@ export default function (classDef) {
   );
 
   function foFn() {
-    if (!(typeof Proxy === 'undefined')) {
-      if (!this._fields) {
-        this._fields = _fieldProxy(this);
-      }
-      return this._fields;
-    }
-    return this._fieldObj;
+    const out = {};
+    this._fieldSubjects.forEach((subject, name) => {
+      out[name] = subject;
+    });
+    return out;
   }
 
   Object.defineProperty(
