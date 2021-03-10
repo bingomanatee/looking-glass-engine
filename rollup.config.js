@@ -3,14 +3,20 @@ import commonjs from 'rollup-plugin-commonjs';
 import { terser } from 'rollup-plugin-terser';
 import sizes from 'rollup-plugin-sizes';
 
-module.exports = {
-  input: 'src/index.js',
-  plugins: [
+const plugins = [
     resolve(),
     commonjs(),
     terser(),
     sizes(),
-  ],
+];
+if (process.env.NODE_ENV === 'test') {
+  console.log('un-terse for testing')
+  plugins.splice(2, 1);
+}
+
+module.exports = {
+  input: 'src/index.js',
+  plugins,
   output: {
     file: 'lib/index.js',
     format: 'umd',

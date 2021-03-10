@@ -9,24 +9,12 @@ const { Event, ABSENT, matchEvent } = require('../lib/index');
 tap.test(p.name, (suite) => {
   suite.test('Event', (event) => {
     event.test('constructor', (con) => {
-      con.test('list', (list) => {
-        const target = Symbol('target');
-
-        const ev = new Event('doThing', new BehaviorSubject(3), 'alpha', target);
-
-        list.same(ev.action, 'doThing', 'action is set');
-        list.same(ev.value, 3, 'value is set');
-        list.same(ev.stage, 'alpha', 'stage is set');
-        // list.same(ev.target, target);
-
-        list.end();
-      });
 
       con.test('params', (params) => {
         const target = Symbol('target');
 
         const ev = new Event({
-          action: 'doThing', valueStream: new BehaviorSubject(3), stage: 'alpha', target,
+          action: 'doThing', value: 3, stage: 'alpha', target,
         });
 
         params.same(ev.action, 'doThing', 'action is set');
@@ -43,7 +31,7 @@ tap.test(p.name, (suite) => {
       const target = Symbol('target');
 
       const ev = new Event({
-        action: 'doThing', valueStream: new BehaviorSubject(3), stage: 'alpha', target,
+        action: 'doThing', value: 3, stage: 'alpha', target,
       });
 
       ev.stage = 'beta';
@@ -58,7 +46,7 @@ tap.test(p.name, (suite) => {
     event.test('error', (params) => {
       const target = Symbol('target');
       const ev = new Event({
-        action: 'doThing', valueStream: new BehaviorSubject(3), stage: 'alpha', target,
+        action: 'doThing', value: 3, stage: 'alpha', target,
       });
 
       ev.error(new Error('I failed'));

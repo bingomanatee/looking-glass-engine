@@ -66,7 +66,7 @@ class ValueStream extends ValueStreamFast {
   }
 
   _watchEvents() {
-    this.when(({ valueStream }) => {
+    this.when((valueStream) => {
       this._updateValue(valueStream.value);
       valueStream.complete();
     }, onNextCommit);
@@ -164,7 +164,12 @@ class ValueStream extends ValueStreamFast {
   send(action, value, stages) {
     const actionStages = stages || this._eventTree.get(action) || this._eventTree.get(A_ANY);
     const onError = this._errorSubject.next.bind(this._errorSubject);
-    const event = new Event(action, new BehaviorSubject(value), actionStages[0], this);
+    const event = new Event({
+      action,
+      value,
+      stages: actionStages[0],
+      target: this,
+    });
     event.subscribe({ error: onError });
     fromEffect(actionStages)
       .pipe(
