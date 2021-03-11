@@ -165,11 +165,12 @@ class ValueStream extends ValueStreamFast {
     const actionStages = stages || this._eventTree.get(action) || this._eventTree.get(A_ANY);
     const onError = this._errorSubject.next.bind(this._errorSubject);
     const event = new Event(
-      value,{
-      action,
-      stages: actionStages[0],
-      target: this,
-    });
+      value, {
+        action,
+        stages: actionStages[0],
+        target: this,
+      },
+    );
     event.subscribe({ error: onError });
     fromEffect(actionStages)
       .pipe(

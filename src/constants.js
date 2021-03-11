@@ -31,11 +31,8 @@ export const Å = ABSENT;
 // param 2 === absent, undefined or target
 export const eqÅ = (target, subject) => (typeof subject === 'undefined') || subject === Å || target === subject;
 
-export const e = (message, meta) => {
-  if (typeof message !== 'string') {
-    message = '';
-  }
-  const error = new Error(message);
+export const e = (error, meta) => {
+  if (typeof error === 'string') error = new Error(error);
   try {
     if (meta) error.meta = meta;
   } catch (err) {

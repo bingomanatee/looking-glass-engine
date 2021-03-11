@@ -217,8 +217,6 @@ class ValueObjectStream extends ValueStream {
       return out;
     }
     return this.send(A_SET, { [key]: value });
-
-    return this;
   }
 
   /**

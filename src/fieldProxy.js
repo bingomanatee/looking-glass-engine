@@ -4,7 +4,7 @@ import { e } from './constants';
 function _fieldProxy(target) {
   return new Proxy(target, {
     get(tgt, key) {
-      console.log('target: ', tgt, 'target fieldSubjects', tgt.fieldSubjects);
+      // console.log('target: ', tgt, 'target fieldSubjects', tgt.fieldSubjects);
       if (!tgt.fieldSubjects.has(key)) console.log('attempt to get undefined fieldSubject', key);
       return tgt.fieldSubjects.get(key);
     },
@@ -14,8 +14,20 @@ function _fieldProxy(target) {
 function addFn(key, stream) {
   if (!this.fieldSubjects.has(key)) {
     this.fieldSubjects.set(key, stream);
+    const target = this;
     const sub = stream.pipe(distinctUntilChanged())
-      .subscribe((value) => this.set(key, value, true));
+      .subscribe({
+        next(value) {
+          target.set(key, value, true);
+        },
+      });
+
+    sub.add(stream.subscribe({
+      error(err) {
+        target.error(e(err, { fieldSubject: sub, target, field: key }));
+      },
+    }));
+
     this.subscribe({
       complete() {
         sub.unsubscribe();

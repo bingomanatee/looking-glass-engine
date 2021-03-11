@@ -7,7 +7,7 @@ const mergeMaps = require('../src/mergeMaps');
 
 const p = require('../package.json');
 
-const { ValueMapStream } = require('../lib');
+const { ValueMapStream, ValueStream } = require('../lib');
 
 const initial = Object.freeze(
   new Map([
@@ -371,6 +371,51 @@ tap.test(p.name, (suite) => {
       coord.set('x', 1.5);
 
       fTest.same(coord.my.x, 2);
+
+      fTest.test('cascading errors', (ce) => {
+        const makeNumSubject = (n = 0) => {
+          const sub = new ValueStream(n);
+
+          sub.filter((a) => {
+            console.log('--- sub filtering ', a);
+            if (typeof a !== 'number') throw new Error('must be a number');
+            return a;
+          });
+
+          sub.subscribe({
+            error(er) {
+              console.log('--- sub error:', er);
+            },
+          });
+          return sub;
+        };
+
+        const coord = new ValueMapStream({
+          x: 0, y: 0,
+        });
+
+        coord.addFieldSubject('x', makeNumSubject(0));
+        coord.addFieldSubject('y', makeNumSubject(0));
+        const errs = [];
+        coord.subscribe({
+          error(er) {
+            console.log('root error:', er);
+            errs.push(er);
+          },
+        });
+
+        coord.set('x', 4);
+        ce.same(errs.map((e) => e.message), []);
+
+        coord.set('y', 'three');
+        ce.same(errs.map((e) => e.message), ['must be a number']);
+
+        ce.same(coord.object, { x: 4, y: 0 });
+
+        coord.set('y', 6);
+        ce.same(coord.object, { x: 4, y: 6 });
+        ce.end();
+      });
       fTest.end();
     });
 
