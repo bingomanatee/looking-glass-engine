@@ -70,6 +70,7 @@ export default (stream, actions) => Object.assign(stream, {
       console.warn('redefining action', name);
     }
     stream._actions.set(name, fn);
+    delete stream._doProxy;
     return stream;
   },
 

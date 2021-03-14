@@ -208,5 +208,50 @@ value. this event has two properties: value and thrownError that can be examined
 * If **thrownError** is _not present_ the event's value should be the current value of that field;
   it will be contained in a map/object to represent how it was merged into the current value of the map.
   
+## observer(on/when) helper methods
 
+These methods utilize on/when to intercept pending set/next actions. 
+They exist in ValueMapStreams and ValueObjectStreams.
+onFinalize exists on generic ValueMapStreams as well. 
 
+## `onField(fn, name)` method 
+
+Streams that have been wrapped by the `addActions(stream, actions)` method 
+get the onField method.
+
+onField takes a function that accepts an Event. unlike filter, the output is not meaningful.
+
+Note that the event that the hook takes may have field changes to other events.
+If you want to "cancel" an update to a specific field, change the transmitted value
+by resetting its value for a field to the value currently stored by the store (provided as the second argument)
+that are being updated by set. 
+
+* to change the fields, send a new map (or the same map, altered) to event.next().
+* To abort the event, call event.error(err).
+* To abort the update without emitting errors, call event.complete();
+
+onField hooks *will* respond to valueMapStream.next(map) wholesale updating of the map.
+That is for each field set, the hook will execute a second time when the entire value
+is updated (the 'A_NEXT' action). If this is a problem (or you only want to act on one
+or the other circumstance), watct the event's `.action` property. The second update
+always occurs in the `E_PRE_MAP_MERGE` phase, before the updated values are merged into
+the current value of the stream.
+
+the name field can be a single name (string), an array of strings, or a function that accepts
+a single name (string) and the target. 
+
+## method `finalize(function(event, stream))`
+
+*Not available for ValueFastStream*
+
+finalize takes a function that accepts an Event - a Subject with a value
+that will be committed; it listens after finalize
+(and almost all other stages in the next sequence). The second argument is the
+ValueStream itself, useful if you want to check the current value of the stream.
+
+Finalize intercepts `next` updates to the stream just before they are accepted.
+
+Unlike filter, the function's output is not meaningful.
+
+* to change the next value of the stream, send a new value to event.next().
+* To abort the update, call event.error(err). 

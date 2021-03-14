@@ -33,9 +33,9 @@ function addFn(key, stream) {
         sub.unsubscribe();
       },
     });
-  } else {
-    throw e(`cannot redefine field subject ${key}`, { key, stream, target: this });
+    return stream;
   }
+  throw e(`cannot redefine field subject ${key}`, { key, stream, target: this });
 }
 
 export default function (classDef) {

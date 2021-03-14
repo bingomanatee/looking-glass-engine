@@ -45,6 +45,21 @@ function onlyObj(evt) {
   }
 }
 
+class ObjectFromSet extends Object {} // class-signature for data from set;
+
+function onFieldFor(name) {
+  const names = Array.isArray(name) ? name : [name];
+  return (value) => {
+    if (!(value && (typeof value === 'object'))) {
+      return false;
+    }
+    if (value instanceof ObjectFromSet) {
+      return false;
+    }
+    return !!names.find((aName) => (aName in value));
+  };
+}
+
 const compareMaps = (map1, map2) => {
   const keys1 = Array.from(Object.keys(map1));
   const keys2 = Array.from(Object.keys(map2));
@@ -52,8 +67,6 @@ const compareMaps = (map1, map2) => {
 
   return keys1.reduce((same, key) => same && map2[key] === map1[key], true);
 };
-
-class ObjectFromSet extends Object {} // class-signature for data from set;
 
 function onlyOldKeys(event, target) {
   const oldKeys = [...target.value.keys()];
@@ -145,16 +158,12 @@ class ValueObjectStream extends ValueStream {
    * @returns {subscriber}
    */
   onField(fn, name, stage = E_PRECOMMIT) {
-    const names = Array.isArray(name) ? [...name] : [name];
-    const ifIntersects = (value) => {
-      if (!(value && (typeof value === 'object'))) {
-        return false;
-      }
-      if (value instanceof ObjectFromSet) {
-        return false;
-      }
-      return !!names.find((aName) => (aName in value));
-    };
+    let ifIntersects;
+    if (typeof name === 'function') {
+      ifIntersects = (event) => name(event, this);
+    } else {
+      ifIntersects = onFieldFor(name);
+    }
 
     // first - if any changes are sent through set() to the fields of interest
     const onTargets = matchEvent({

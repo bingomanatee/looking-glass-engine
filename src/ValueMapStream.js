@@ -39,6 +39,20 @@ const kas = (aMap) => {
   }
 };
 
+const onFieldFor = (name) => {
+  const names = Array.isArray(name) ? [...name] : [name];
+
+  return (value) => {
+    if (!(value instanceof Map)) {
+      return false;
+    }
+    if (value._$from === SR_FROM_SET) {
+      return false;
+    }
+    return !![...value.keys()].find((key) => names.includes(key));
+  };
+};
+
 const compareMaps = (map1, map2) => {
   if (!((map1 instanceof Map) && (map2 instanceof Map))) {
     return false;
@@ -132,21 +146,17 @@ class ValueMapStream extends ValueStream {
    * watches for changes to a specific field
    *
    * @param fn {function}
-   * @param name {string}
+   * @param name {string|function}
    * @param stage {string} - a phase code (optional)
    * @returns {subscriber}
    */
   onField(fn, name, stage = E_PRECOMMIT) {
-    const names = Array.isArray(name) ? [...name] : [name];
-    const ifIntersects = (value) => {
-      if (!(value instanceof Map)) {
-        return false;
-      }
-      if (value._$from === SR_FROM_SET) {
-        return false;
-      }
-      return !![...value.keys()].find((key) => names.includes(key));
-    };
+    let ifIntersects;
+    if (typeof name === 'function') {
+      ifIntersects = (event) => name(event, this);
+    } else {
+      ifIntersects = onFieldFor(name);
+    }
 
     // first - if any changes are sent through set() to the fields of interest
     const onTargets = matchEvent({

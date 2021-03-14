@@ -148,6 +148,9 @@ class ValueStream extends ValueStreamFast {
       try {
         fn(event, target);
       } catch (err) {
+        if (this.debug) {
+          console.log('---- error doing ', fn.toString(), ': ', err.message)
+        }
         event.error(err);
       }
     }, NOOP);
