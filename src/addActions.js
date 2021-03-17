@@ -7,7 +7,7 @@ const SET_RE = /^set(.+)$/i;
 const actionProxy = (stream) => new Proxy(stream, {
   get(target, name) {
     if (name === 'constructor') {
-      console.log('--- why do we care about constructor');
+      if (stream.debug) console.warn('--- why do we care about constructor');
       return null;
     }
     if (target._actions.has(name)) {
@@ -25,7 +25,7 @@ const actionProxy = (stream) => new Proxy(stream, {
       }
     }
 
-    console.log('unknown action:', name, 'in stream', stream);
+    console.log('unknown action:', name, 'called on stream.do of ', stream);
     throw e(`no action ${name}`, target);
   },
 });
@@ -40,15 +40,17 @@ const doObj = (stream) => {
     };
   });
 
-  const iter = (stream.value instanceof Map) ? stream.value.keys()
-    : Object.keys(stream.value);
+  if (typeof stream.set === 'function') {
+    const iter = (stream.value instanceof Map) ? stream.value.keys()
+      : Object.keys(stream.value);
 
-  iter.forEach((key) => {
-    out[key] = (next) => {
-      if (stream.debug) console.warn('using non-proxy set');
-      return stream.set(key, next);
-    };
-  });
+    iter.forEach((key) => {
+      out[key] = (next) => {
+        if (stream.debug) console.warn('using non-proxy set');
+        return stream.set(key, next);
+      };
+    });
+  }
 
   return out;
 };

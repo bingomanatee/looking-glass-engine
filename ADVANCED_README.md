@@ -255,3 +255,63 @@ Unlike filter, the function's output is not meaningful.
 
 * to change the next value of the stream, send a new value to event.next().
 * To abort the update, call event.error(err). 
+
+# Transactional Locking
+
+This experimental feature has been fully integrated into ValueStreams (except for Fast streams). 
+
+calling `const t = myStream.trans()` temporarily suspend emission of value of the stream until the trans is completed.
+
+This will NOT block events from emitting, or actions from completing  --
+but it WILL block the value from being changed until the transaction  `complete()`a. 
+
+At a low level, there is a subject that stores all updates (baseSubject) that emits into valueSubject
+only in the abcense of any pending transactions.
+
+So, the existence of incomplete transactions suspends the broadcasting of changes to subscribers, but not
+the recording of value updates.
+
+You can provide your own subject to addTrans -- or take a generic one which will be created for you.
+for instance, if you want to suspend the updating of a stream on mousedowns you can put `let myTrans = stream.trans(-1)`
+on a mouseDown handler and put `if (myTrans) myTrans.complete()` on mouseup/mouseleave handlers.
+
+Both the stream and timeout value of `trans(myStream, lifespan)` are optional; 
+so all of these calls are valid:
+
+* `myStream.trans()` -- returns a subject that expires in one second
+* `myStream.trans(10000)` -- returns a subject that expires in ten seconds
+* `myStream.trans(-1)` -- returns a non-expiring transaction subject
+* `myStream.trans(mySubject)` -- returns mySubject -- which will be completed in one second
+* `myStream.trans(mySubject, -1)` -- returns mySubject which won't be forced to expire ever
+* `myStream.trans(mySubject, 10000)` -- returns mySubject, which will be foreced to expire in ten seconds
+
+## lifespan of transactions
+
+Given that transactions suspend functionality of streams they are dangerous. As a built-in safety valve, they
+expire in one second by default. The lifespan property 
+
+By default, the transaction will die in one second (as defined by the lifespan parameter).
+If you want to keep the transaction alive indefinately, pass -1 to the second parameter.
+
+If the subject expires, it will also un-block the transaction stream.
+
+@param subject
+@param lifespan
+@returns {Subject<T>}
+
+trans() can be called multiple times; in that scenario the emission will block
+until *all* the returned subjects complete/expire.
+
+lifespan is accomplished using the `timeout` operator when possible. 
+
+## Zero-second transactions
+
+If the lifespan is *exactly* zero, LGE will attempt to kill off the transaction 
+on the next requestAnimationFrame cycle if possible; otherwise, will use a one-millisecond timeout. 
+
+## Open transactions
+
+Passing -1 (any negative number) will *disable* automatic transactional closing. 
+The transaction will only complete when YOU tell it to. 
+This puts a big responsibility on you to manage transactions well and is *not* reccomended.
+

@@ -6,7 +6,6 @@ import ValueObjectStream from './ValueObjectStream';
 import Event from './Event';
 import setProxy from './setProxy';
 import * as constants from './constants';
-import addTrans from './addTrans';
 import addActions from './addActions';
 import matchEvent from './matchEvent';
 
@@ -21,5 +20,4 @@ export default {
   ValueMapStreamFast,
   ValueObjectStream,
   setProxy,
-  addTrans,
 };

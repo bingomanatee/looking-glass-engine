@@ -10,7 +10,8 @@
     "umd"
   ],
   "scripts": {
-    "test": "NODE_ENV=test yarn build; tap test test/* -R specy",
+    "test": "NODE_ENV=test yarn build;tap test test/* -R specy",
+    "tb": "NODE_ENV=test yarn build",
     "testo": "NODE_ENV=test yarn build; tap test test/* -R specy --only",
     "doc": "jsdoc ./src/ -c jsdoc.config.json",
     "build": "node_modules/rollup/dist/bin/rollup -c='rollup.config.js'"

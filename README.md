@@ -165,8 +165,28 @@ add a series of user defined actions to the streams' `do` property.
 
 The first argument into the method is always a reference to the stream itself.
 
-The reason that streams don't come with actions inherent is that streams can be nested,  
-and its better to add the overhead of actions on a case by case basis.
+additionally, passing an actions object as a configuration to the constructor will also work.
+
+```javascript
+const myActions = {
+  doubleValue(stream) {
+    stream.next(2 * stream.value)
+  },
+  halfValue(stream) {
+    stream.next(stream.value / 2)
+  }
+}
+
+// both methods produce the same stream.
+
+  const streamOne = new ValueStream(10, {
+    actions: myActions
+  });
+
+  const streamTwo = addActions(new ValueStream(10), myActions);
+
+```
+
 
 ## there is nothing "magical" about user defined actions
 

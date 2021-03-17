@@ -8,6 +8,7 @@ import {
 import lGet from 'lodash/get';
 import Event from './Event';
 import { NOOP } from './constants';
+import addActions from './addActions';
 
 /**
  * A streaming state system. It has the external features of a BehaviorSubject.
@@ -27,10 +28,12 @@ class ValueStreamFast {
     // eslint-disable-next-line no-shadow
     this._updateValue(value);
     const {
-      name, debug = false, finalize,
+      name, debug = false, finalize, actions,
     } = options;
     this.name = name || (`state_${Math.random()}`);
     this.debug = debug;
+
+    if (actions) addActions(this, actions);
   }
 
   get _valueSubject() {
@@ -81,7 +84,6 @@ class ValueStreamFast {
     }
     return this;
   }
-
 
   _updateValue(value) {
     this._valueSubject.next(value);

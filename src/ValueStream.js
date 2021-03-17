@@ -1,7 +1,7 @@
 import {
   BehaviorSubject, from as fromEffect, Subject, combineLatest,
 } from 'rxjs';
-import { filter, map } from 'rxjs/operators';
+import { filter, map, timeout } from 'rxjs/operators';
 
 import Event from './Event';
 import {
@@ -25,7 +25,7 @@ class ValueStream extends ValueStreamFast {
    */
   constructor(value, options = {}) {
     super(value, options);
-
+    this.debugTrans = !!options.debugTrans;
     // eslint-disable-next-line no-shadow
     const {
       filter: myFilter, finalize,
@@ -235,20 +235,101 @@ class ValueStream extends ValueStreamFast {
     return this._$transSubject;
   }
 
+  remTrans(subject) {
+    if (!subject) return;
+    const transSet = this._transSubject.value;
+    transSet.delete(subject);
+    this._transSubject.next(transSet);
+  }
+
+  /**
+   * temporarily suspend emission of value of the stream until the trans is completed.
+   *
+   * note -- this will NOT block events from occuring  --
+   * but it WILL block the value from being changed until the transaction completees.
+   * just the broadcasting of changes to subscribers.
+   *
+   * You can provide your own subject to addTrans -- or take a generic one which will be created for you.
+   *
+   * so all of these calls are valid:
+   *
+   * - myStream.trans() -- returns a subject that expires in one second
+   * - myStream.trans(10000) -- returns a subject that expires in ten seconds
+   * - myStream.trans(-1) -- returns a non-expiring transaction subject
+   * - myStream.trans(mySubject) -- returns mySubject -- which will be completed in one second
+   * - myStream.trans(mySubject, -1) -- returns mySubject which won't be forced to expire ever
+   * - myStream.trans(mySubject, 10000) -- returns mySubject, which will be foreced to expire in ten seconds
+   *
+   * By default, the transaction will die in one second (as defined by the lifespan parameter).
+   * If you want to keep the transaction alive indefinately, pass -1 to the second parameter.
+   *
+   * If the subject expires, it will also un-block the transaction stream.
+   *
+   * @param subject
+   * @param lifespan
+   * @returns {Subject<T>}
+   *
+   * trans() can be called multiple times; in that scenario the emission will block
+   * until *all* the returned subjects complete/expire.
+   */
+  trans(subject, lifespan = 1000) {
+    if (typeof subject === 'number') {
+      lifespan = subject;
+      subject = null;
+    }
+    if (!subject) subject = new Subject();
+    if (lifespan > 0) {
+      subject = subject.pipe(timeout(lifespan));
+    }
+    // if lifespan is exactly zero, complete current thread then stop the transaction.
+    if (lifespan === 0) {
+      if (typeof requestAnimationFrame === 'function') {
+        requestAnimationFrame(() => {
+          if (!subject.isStopped) {
+            subject.complete();
+          }
+        });
+      } else {
+        subject = subject.pipe(timeout(1));
+      }
+    }
+    const transSet = this._transSubject.value;
+    transSet.add(subject);
+    this._transSubject.next(transSet);
+    const remTrans = this.remTrans.bind(this);
+
+    subject.subscribe({
+      error() {
+        remTrans(subject);
+      },
+      complete() {
+        remTrans(subject);
+      },
+    });
+    return subject;
+  }
+
   get _baseSubject() {
     if (!this._$baseSubject) {
       this._$baseSubject = new BehaviorSubject(null);
-
+      const valueSubject = this._valueSubject;
+      const errorSubject = this._errorSubject;
+      const { debugTrans } = this;
       this._$baseSubjectObserver = combineLatest(this._$baseSubject, this._transSubject)
         .pipe(
-          filter(([values, trans]) => trans.size < 1),
+          filter(([values, trans]) => {
+            if (debugTrans) console.log('filtering trans: size = ', trans.size);
+
+            return trans.size < 1;
+          }),
           map(([value]) => value),
         ).subscribe({
           next(value) {
-            this._valueSubject.next(value);
+            if (debugTrans) console.log('passing on value to valueSubject: ', value);
+            valueSubject.next(value);
           },
           error(err) {
-            this.error(err);
+            errorSubject.next(err);
           },
           complete() {
             this._valueSubject.complete();
