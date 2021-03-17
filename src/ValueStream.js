@@ -1,4 +1,6 @@
-import { BehaviorSubject, from as fromEffect, Subject } from 'rxjs';
+import {
+  BehaviorSubject, from as fromEffect, Subject, combineLatest,
+} from 'rxjs';
 import { filter, map } from 'rxjs/operators';
 
 import Event from './Event';
@@ -23,7 +25,6 @@ class ValueStream extends ValueStreamFast {
    */
   constructor(value, options = {}) {
     super(value, options);
-    this._eventTree = new Map(defaultEventTree);
 
     // eslint-disable-next-line no-shadow
     const {
@@ -53,6 +54,13 @@ class ValueStream extends ValueStreamFast {
       throw new Error('setStages requires a non-empty array');
     }
     this._eventTree.set(action, stages);
+  }
+
+  get _eventTree() {
+    if (!this._$eventTree) {
+      this._$eventTree = new Map(defaultEventTree);
+    }
+    return this._$eventTree;
   }
 
   get _eventSubject() {
@@ -103,6 +111,17 @@ class ValueStream extends ValueStreamFast {
     return this.when(finalize, onPreCommitNext);
   }
 
+  /**
+   * Executes a function on an event under specific conditions.
+   * @param fn
+   * @param onAction
+   * @param onStage
+   * @param onValue
+   * @returns {subscriber}
+   *
+   * note - you can STOP the observation by calling `.complete()` on the returned observer.
+   *
+   */
   on(fn, onAction = A_NEXT, onStage = E_FILTER, onValue = Å) {
     if (typeof fn !== 'function') {
       throw e('on() requires function', fn);
@@ -120,6 +139,9 @@ class ValueStream extends ValueStreamFast {
   }
 
   /**
+   * This is a simpler event filter; it occurs when test(event) is true.
+   * tests can be produced through matchEvent(as in "on" above) or can be
+   * a custom user test.
    *
    * @param fn {function}
    * @param test {function}
@@ -144,12 +166,12 @@ class ValueStream extends ValueStreamFast {
     );
 
     observer.subscribe((event) => {
-      if (this.debug) console.log('doing ', event.toString(), fn.toString());
       try {
         fn(event, target);
+        if (this.debug) console.log('when:performed ', event.toString(), fn.toString());
       } catch (err) {
         if (this.debug) {
-          console.log('---- error doing ', fn.toString(), ': ', err.message)
+          console.log('---- when:error performed ', fn.toString(), ': ', err.message);
         }
         event.error(err);
       }
@@ -204,6 +226,40 @@ class ValueStream extends ValueStreamFast {
    */
   next(value) {
     this.send(A_NEXT, value);
+  }
+
+  get _transSubject() {
+    if (!this._$transSubject) {
+      this._$transSubject = new BehaviorSubject(new Set());
+    }
+    return this._$transSubject;
+  }
+
+  get _baseSubject() {
+    if (!this._$baseSubject) {
+      this._$baseSubject = new BehaviorSubject(null);
+
+      this._$baseSubjectObserver = combineLatest(this._$baseSubject, this._transSubject)
+        .pipe(
+          filter(([values, trans]) => trans.size < 1),
+          map(([value]) => value),
+        ).subscribe({
+          next(value) {
+            this._valueSubject.next(value);
+          },
+          error(err) {
+            this.error(err);
+          },
+          complete() {
+            this._valueSubject.complete();
+          },
+        });
+    }
+    return this._$baseSubject;
+  }
+
+  _updateValue(value) {
+    this._baseSubject.next(value);
   }
 }
 

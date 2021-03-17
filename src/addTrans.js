@@ -2,12 +2,6 @@ import { BehaviorSubject, from, Subject } from 'rxjs';
 import {
   combineLatest, distinctUntilChanged, filter, map,
 } from 'rxjs/operators';
-import {
-  E_COMMIT, E_FILTER, E_INITIAL, E_VALIDATE, A_NEXT, E_COMPLETE, A_ANY,
-  defaultEventTree, eqÅ, Å, e,
-} from './constants';
-
-import setProxy, { SET_AFTER, SET_BEFORE } from './setProxy';
 
 export default (stream) => Object.assign(stream, {
   _transStream: new BehaviorSubject(new Set()),

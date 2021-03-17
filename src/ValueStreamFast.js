@@ -24,13 +24,20 @@ class ValueStreamFast {
    * @param options {Object} config options - mainly relevant in the ValueMapStream subclass
    */
   constructor(value, options = {}) {
-    this._valueSubject = new BehaviorSubject(value);
     // eslint-disable-next-line no-shadow
+    this._updateValue(value);
     const {
       name, debug = false, finalize,
     } = options;
     this.name = name || (`state_${Math.random()}`);
     this.debug = debug;
+  }
+
+  get _valueSubject() {
+    if (!this._$valueSubject) {
+      this._$valueSubject = new BehaviorSubject();
+    }
+    return this._$valueSubject;
   }
 
   get _errorSubject() {
@@ -53,7 +60,11 @@ class ValueStreamFast {
   }
 
   /**
-   * emit an error to subscribes.
+   * emit an error to subscribers. Note - unlike stock Subjects,
+   * error() on a ValueStream does NOT terminate the Subject; it is routed
+   * through its own broadcast stream. This makes it (hopefully) difficult
+   * to halt a stream through a simple screwup.
+   *
    * @param error {Error}
    * @param event
    * @returns {ValueStream|*}
@@ -70,6 +81,7 @@ class ValueStreamFast {
     }
     return this;
   }
+
 
   _updateValue(value) {
     this._valueSubject.next(value);

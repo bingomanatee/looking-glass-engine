@@ -2,9 +2,9 @@
 import produce from 'immer';
 
 const tap = require('tap');
-const p = require('./../package.json');
+const p = require('../package.json');
 
-const { setProxy } = require('./../lib/index');
+const { setProxy } = require('../lib/index');
 
 tap.test(p.name, (suite) => {
   suite.test('setProxy', (spTest) => {
@@ -19,7 +19,6 @@ tap.test(p.name, (suite) => {
 
     spTest.end();
   });
-
 
   suite.end();
 });

@@ -12,30 +12,31 @@ function _fieldProxy(target) {
 }
 
 function addFn(key, stream) {
-  if (!this.fieldSubjects.has(key)) {
-    this.fieldSubjects.set(key, stream);
-    const target = this;
-    const sub = stream.pipe(distinctUntilChanged())
-      .subscribe({
-        next(value) {
-          target.set(key, value, true);
-        },
-      });
-
-    sub.add(stream.subscribe({
-      error(err) {
-        target.error(e(err, { fieldSubject: sub, target, field: key }));
-      },
-    }));
-
-    this.subscribe({
-      complete() {
-        sub.unsubscribe();
+  if (this.fieldSubjects.has(key)) {
+    throw e(`cannot redefine field subject ${key}`,
+      { key, stream, target: this });
+  }
+  this.fieldSubjects.set(key, stream);
+  const target = this;
+  const sub = stream.pipe(distinctUntilChanged())
+    .subscribe({
+      next(value) {
+        target.set(key, value, true);
       },
     });
-    return stream;
-  }
-  throw e(`cannot redefine field subject ${key}`, { key, stream, target: this });
+
+  sub.add(stream.subscribe({
+    error(err) {
+      target.error(e(err, { fieldSubject: sub, target, field: key }));
+    },
+  }));
+
+  this.subscribe({
+    complete() {
+      sub.unsubscribe();
+    },
+  });
+  return stream;
 }
 
 export default function (classDef) {
