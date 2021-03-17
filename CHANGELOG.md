@@ -85,3 +85,9 @@ to fieldSubjects)
 
 refactored events to be straightforward BehaviorSubject extensions. 
 replaced EventFilters with functional approach. 
+
+# 3.5.0
+
+Formally releasing transactional locking. 
+Allowing actions to be passed in to the constructor as a configuration 
+refactored several internal props to be implicit read-only properties. 
