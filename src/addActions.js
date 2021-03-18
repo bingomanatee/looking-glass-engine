@@ -11,7 +11,11 @@ const actionProxy = (stream) => new Proxy(stream, {
       return null;
     }
     if (target._actions.has(name)) {
-      return (...args) => target._actions.get(name)(target, ...args);
+      if (!target._amap) target._amap = new Map();
+      if (!target._amap.has(name)) {
+        target._amap.set(name, (...args) => target._actions.get(name)(target, ...args));
+      }
+      return target._amap.get(name);
     }
 
     if (typeof target.set === 'function') {
@@ -25,8 +29,8 @@ const actionProxy = (stream) => new Proxy(stream, {
       }
     }
 
-    console.log('unknown action:', name, 'called on stream.do of ', stream);
-    throw e(`no action ${name}`, target);
+    console.log('unknown action:', name, 'called on stream.do');
+    throw new Error(`no action ${name}`);
   },
 });
 
