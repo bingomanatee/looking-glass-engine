@@ -381,12 +381,6 @@ tap.test(p.name, (suite) => {
             if (typeof a !== 'number') throw new Error('must be a number');
             return a;
           });
-
-          sub.subscribe({
-            error(er) {
-              console.log('--- sub error:', er);
-            },
-          });
           return sub;
         };
 

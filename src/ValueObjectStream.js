@@ -49,6 +49,7 @@ class ObjectFromSet extends Object {} // class-signature for data from set;
 
 function onFieldFor(name) {
   const names = Array.isArray(name) ? name : [name];
+  const test = (typeof name === 'function') ? name : (aName) => names.includes(aName);
   return (value) => {
     if (!(value && (typeof value === 'object'))) {
       return false;
@@ -56,7 +57,7 @@ function onFieldFor(name) {
     if (value instanceof ObjectFromSet) {
       return false;
     }
-    return !!names.find((aName) => (aName in value));
+    return Object.keys(value).find(test);
   };
 }
 
@@ -158,12 +159,7 @@ class ValueObjectStream extends ValueStream {
    * @returns {subscriber}
    */
   onField(fn, name, stage = E_PRECOMMIT) {
-    let ifIntersects;
-    if (typeof name === 'function') {
-      ifIntersects = (event) => name(event, this);
-    } else {
-      ifIntersects = onFieldFor(name);
-    }
+    const ifIntersects = onFieldFor(name);
 
     // first - if any changes are sent through set() to the fields of interest
     const onTargets = matchEvent({
