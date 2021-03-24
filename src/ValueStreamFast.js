@@ -105,6 +105,13 @@ class ValueStreamFast {
     this._updateValue(value);
   }
 
+  get valueNonTrans() {
+    if (this._baseSubject) {
+      return this._baseSubject.value;
+    }
+    return this.value;
+  }
+
   /**
    * passthrough to the valueStream's value
    * @returns {any}

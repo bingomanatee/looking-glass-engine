@@ -258,7 +258,7 @@ Unlike filter, the function's output is not meaningful.
 
 # Transactional Locking
 
-This experimental feature has been fully integrated into ValueStreams (except for Fast streams). 
+This <u>**!!! EXPERIMENTAL !!!**</u> feature has been fully integrated into ValueStreams (except for Fast streams). 
 
 calling `const t = myStream.trans()` temporarily suspend emission of value of the stream until the trans is completed.
 
@@ -284,6 +284,14 @@ so all of these calls are valid:
 * `myStream.trans(mySubject)` -- returns mySubject -- which will be completed in one second
 * `myStream.trans(mySubject, -1)` -- returns mySubject which won't be forced to expire ever
 * `myStream.trans(mySubject, 10000)` -- returns mySubject, which will be foreced to expire in ten seconds
+
+### simple "ad hoc" transactions
+
+as an alternate to transactions you can set *several options at once by passing a Map/object to `myStream.set({a: 1, b: 2})`
+(or for maps: `myMapStream.set(new Map([['a', 1], ['b', 2]]))`). This will pass all parameters at once and any filter/error
+on one set will cancel the entire update. This in some cases is *better* than relying on transactions because it makes complex
+operations truly atomic. transactions (as described below) do **NOT** make their updates atomic -- they **only** reduce the number
+of emitted next values. 
 
 ## lifespan of transactions
 
@@ -314,4 +322,6 @@ on the next requestAnimationFrame cycle if possible; otherwise, will use a one-m
 Passing -1 (any negative number) will *disable* automatic transactional closing. 
 The transaction will only complete when YOU tell it to. 
 This puts a big responsibility on you to manage transactions well and is *not* reccomended.
+
+## value during transactions
 

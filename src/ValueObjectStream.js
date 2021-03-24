@@ -80,7 +80,7 @@ function onlyOldKeys(event, target) {
 
 const setToNext = (event, target) => {
   const nextValue = new ObjectFromSet();
-  Object.assign(nextValue, target.value);
+  Object.assign(nextValue, target.valueNonTrans);
 
   if (Array.isArray(event.value)) {
     const list = [...event.value];
@@ -106,7 +106,7 @@ const deleteKey = (event, target) => {
       }
       const targetValue = { ...target.value };
       delete targetValue[key];
-      target._valueSubject.next(targetValue);
+      target._baseSubject.next(targetValue);
     },
   });
 };

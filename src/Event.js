@@ -1,8 +1,10 @@
 import isEqual from 'lodash/isEqual';
 import lGet from 'lodash/get';
 import { BehaviorSubject } from 'rxjs';
+import { nanoid } from 'nanoid';
 import { ABSENT, Å, e } from './constants';
 import matchEvent from './matchEvent';
+
 /**
  * Event is a subject that is emitted through a staging sequence
  * to effect change on ValueStreams. Its value can be updated on the fly by listeners
@@ -16,6 +18,7 @@ class Event extends BehaviorSubject {
   constructor(value, params) {
     super(value);
     this._initParams(params);
+    this.id = nanoid();
   }
 
   _initParams({
@@ -82,6 +85,10 @@ class Event extends BehaviorSubject {
             entries, props,
           });
         }
+        try {
+          return JSON.stringify(this.value);
+        } catch (ee) {}
+
         if (typeof this.value.toString === 'function') return this.value.toString();
       }
 
@@ -93,7 +100,7 @@ class Event extends BehaviorSubject {
   }
 
   toString() {
-    const list = ['<<'];
+    const list = ['<<', this.id];
     if (this.action !== Å) list.push('action: ', this.action.toString());
     if (this.stage !== Å) list.push('stage:', this.stage.toString());
     if (this.value !== Å) list.push('value', this.valueToString());

@@ -393,7 +393,6 @@ tap.test(p.name, (suite) => {
         const errs = [];
         coord.subscribe({
           error(er) {
-            console.log('root error:', er);
             errs.push(er);
           },
         });

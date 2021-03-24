@@ -88,7 +88,7 @@ function onlyOldKeys(event, target) {
 }
 
 const setToNext = (event, target) => {
-  const nextValue = mergeMaps(target.value, event.value);
+  const nextValue = mergeMaps(target.valueNonTrans, event.value);
   if (!event.isStopped) event.complete();
   nextValue._$from = SR_FROM_SET;
   target.next(nextValue);
@@ -104,15 +104,15 @@ const deleteKey = (event, target) => {
         target.fieldSubjects.get(key).complete();
         target.fieldSubjects.delete(key);
       }
-      const targetValue = new Map(target.value);
+      const targetValue = new Map(target.valueNonTrans);
       targetValue.delete(key);
-      target._valueSubject.next(targetValue);
+      target._baseSubject.next(targetValue);
     },
   });
 };
 
 const mergeNext = (event, target) => {
-  event.next(mergeMaps(target.value, event.value));
+  event.next(mergeMaps(target.valueNonTrans, event.value));
 };
 
 /**
